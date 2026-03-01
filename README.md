@@ -1,25 +1,36 @@
-# IIIT Kottayam Super League
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-This is the central repository for the college men's and women's football league website. 
+## Getting Started
 
-## Tech Stack
-* Frontend: Next.js, React
-* Database/Backend: Supabase
-* Deployment: Vercel
-* Package Manager: pnpm
+First, run the development server:
 
-## Workflow Rules
-We use a strict issue-driven forking workflow. If you do not follow these steps, your Pull Request will be rejected.
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-1. Do not push directly to the `main` branch.
-2. Fork this repository. Make sure you uncheck "Copy the main branch only" so you get the dev branches.
-3. Check out the specific dev branch assigned to you on your fork.
-4. Complete the tasks exactly as described in your assigned GitHub Issue.
-5. Open a Pull Request from your fork's dev branch to the upstream `main` branch.
-6. You must include `Closes #<Issue_Number>` in your PR description so the Kanban board updates automatically.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Local Setup
-1. Clone your fork locally.
-2. Run `pnpm install`
-3. Create a `.env.local` file and add the Supabase URL and Anon Key (request these from the lead maintainer).
-4. Run `pnpm dev` to start the development server.
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
