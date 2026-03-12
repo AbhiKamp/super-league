@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { handleError } from '../../../lib/errorHandler'; 
 
 export const revalidate = 60; 
 
@@ -20,26 +21,23 @@ export async function GET() {
       }
     );
 
-    // Fetch the top 10 goal scorers from your database schema
     const { data, error } = await supabase
       .from('top_scorers')
       .select('*')
       .order('goalsScored', { ascending: false })
       .limit(10); 
 
+    // If Supabase throws an error, it gets caught immediately by the catch block
     if (error) throw error;
 
     return NextResponse.json({
       success: true,
-      message: "Legends fetched successfully (Cached)",
+      message: "Legends fetched successfully",
       data: data
     });
 
   } catch (error) {
-    console.error("Legends fetch error:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch legends" },
-      { status: 500 }
-    );
+    // Pass the raw error and a context string to our new central utility!
+    return handleError(error, "Legends API Fetch");
   }
 }
