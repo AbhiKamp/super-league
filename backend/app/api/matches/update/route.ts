@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { matchUpdateSchema } from '../../../../lib/validations'; // Import the schema!
 
 export async function POST(request: Request) {
   try {
@@ -11,19 +12,15 @@ export async function POST(request: Request) {
       process.env.SUPABASE_ANON_KEY!,
       {
         cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
+          getAll() { return cookieStore.getAll() },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
+            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
           },
         },
       }
     );
 
-    // 1. Security Check: Verify the Admin is actually logged in
+    // 1. Security Check
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -35,16 +32,26 @@ export async function POST(request: Request) {
 
     // 2. Parse the incoming JSON body
     const body = await request.json();
-    const { matchId, home_score, away_score, status } = body;
 
-    if (!matchId) {
+    // 3. ZOD VALIDATION: The Customs Inspector
+    const validationResult = matchUpdateSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      // If validation fails, immediately return a 400 Bad Request with the specific errors
       return NextResponse.json(
-        { success: false, message: "matchId is required" },
+        { 
+          success: false, 
+          message: "Invalid request payload", 
+          errors: validationResult.error.flatten().fieldErrors 
+        },
         { status: 400 }
       );
     }
 
-    // 3. Update the database
+    // If it passes, we extract the perfectly typed data!
+    const { matchId, home_score, away_score, status } = validationResult.data;
+
+    // 4. Update the database
     const { data, error } = await supabase
       .from('matches')
       .update({ 
