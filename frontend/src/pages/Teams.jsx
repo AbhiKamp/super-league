@@ -1,122 +1,286 @@
 import { useState, useMemo } from 'react';
 import { useLeague } from '../context/LeagueContext';
 import { useApi } from '../hooks/useApi';
-import { ArrowLeft, Shield } from 'lucide-react';
+import { ArrowLeft, Shield, Loader2, Users, Calendar } from 'lucide-react';
 
-export function Teams() {
-  const { division } = useLeague();
-  const [selectedTeam, setSelectedTeam] = useState(null);
+function generateGradient(name = '') {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  const hue = Math.abs(hash % 360);
+  return `linear-gradient(135deg, hsl(${hue}, 80%, 20%), hsl(${(hue + 40) % 360}, 60%, 10%))`;
+}
 
-  const { data: standingsResp } = useApi('/standings');
-  const standings = standingsResp?.data || [];
+const POSITION_ORDER = ['GK', 'DEF', 'MID', 'FWD'];
+const POSITION_LABELS = { GK: 'Goalkeepers', DEF: 'Defenders', MID: 'Midfielders', FWD: 'Forwards' };
 
-  // Extract unique teams from standings
-  const teams = useMemo(() => {
-    return standings.map(s => ({
-      id: s.club,
-      name: s.club,
-    }));
-  }, [standings]);
-
-  // Local fallback players list for Phase 3 UI preview
-  const data = { players: [
-    { id: 1, name: 'Alex Vance', club: 'Neon Strikers FC', rating: 89, pace: 92, shooting: 88, passing: 85, imgUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80' },
-    { id: 2, name: 'Marcus Cole', club: 'Spartan FC', rating: 87, pace: 80, shooting: 91, passing: 82, imgUrl: 'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80' },
-  ] };
-
-  // Filter players for selected team
-  const teamPlayers = useMemo(() => {
-    if (!selectedTeam) return [];
-    return data.players.filter(p => p.club === selectedTeam);
-  }, [selectedTeam]);
-
-  // Generate a mock team logo background gradient based on the club name
-  const generateGradient = (name) => {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const hue = Math.abs(hash % 360);
-    return `linear-gradient(135deg, hsl(${hue}, 80%, 20%), hsl(${(hue + 40) % 360}, 60%, 10%))`;
-  };
-
+function PlayerRow({ player, onSelect }) {
   return (
-    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl sm:text-5xl font-black tracking-tighter uppercase">
-          {selectedTeam ? selectedTeam : "Teams"} <span className="text-zinc-600">Overview</span>
-        </h1>
-        {selectedTeam && (
-          <button
-            onClick={() => setSelectedTeam(null)}
-            className="flex items-center gap-2 px-4 py-2 border border-white/10 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            <span className="hidden sm:inline">Back to Teams</span>
-          </button>
+    <div
+      onClick={() => onSelect(player)}
+      className="flex items-center gap-4 py-3 px-2 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors group rounded-lg"
+    >
+      {/* Avatar */}
+      <div className="w-12 h-12 rounded-lg overflow-hidden bg-zinc-800 shrink-0 border border-white/10">
+        {player.image_url ? (
+          <img src={player.image_url} alt={player.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Shield className="w-5 h-5 text-zinc-600" />
+          </div>
         )}
       </div>
 
-      {!selectedTeam ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {teams.map((team) => (
-            <div
-              key={team.id}
-              onClick={() => setSelectedTeam(team.id)}
-              className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/5 bg-white/5 transition-all duration-300 hover:border-white/20 hover:scale-[1.02]"
-            >
-              <div 
-                className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-300"
-                style={{ background: generateGradient(team.name) }}
-              />
-              <div className="relative p-8 flex flex-col items-center justify-center text-center gap-4 h-48">
-                <Shield className="w-12 h-12 text-white/80 group-hover:text-white transition-colors" />
-                <h3 className="text-xl sm:text-2xl font-bold tracking-widest uppercase">{team.name}</h3>
-                <p className="text-sm text-zinc-400"></p>
+      {/* Name */}
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-white group-hover:text-zinc-200 transition-colors truncate">
+          {player.name}
+        </p>
+      </div>
+
+      {/* Jersey number */}
+      {player.jersey_number != null && (
+        <span className="text-sm font-mono font-bold text-zinc-500 shrink-0">
+          #{player.jersey_number}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function MatchRow({ match, teamId }) {
+  const isHome = match.home_team_id === teamId;
+  const opponent = isHome ? match.away_team : match.home_team;
+  const teamScore = isHome ? match.home_score : match.away_score;
+  const oppScore = isHome ? match.away_score : match.home_score;
+
+  let result = null;
+  let resultColor = 'text-zinc-500';
+  if (match.status === 'completed') {
+    if (teamScore > oppScore) { result = 'W'; resultColor = 'text-green-400'; }
+    else if (teamScore < oppScore) { result = 'L'; resultColor = 'text-red-400'; }
+    else { result = 'D'; resultColor = 'text-yellow-400'; }
+  }
+
+  const dateStr = match.date
+    ? new Date(match.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+    : '—';
+
+  return (
+    <div className="flex items-center justify-between py-3 px-2 border-b border-white/5 text-sm">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="text-zinc-500 font-mono text-xs w-12 shrink-0">{dateStr}</span>
+        <span className="text-zinc-400 text-xs uppercase shrink-0">{isHome ? 'vs' : '@'}</span>
+        <span className="font-bold text-white truncate">{opponent}</span>
+      </div>
+      <div className="flex items-center gap-3 shrink-0 ml-4">
+        {match.status === 'completed' ? (
+          <>
+            <span className="font-mono font-bold text-white">{teamScore}–{oppScore}</span>
+            <span className={`font-black text-xs w-5 text-center ${resultColor}`}>{result}</span>
+          </>
+        ) : (
+          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
+            {match.status === 'live' ? '🔴 Live' : 'Upcoming'}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TeamOverview({ team, allPlayers, onBack, onSelectPlayer }) {
+  const [activeTab, setActiveTab] = useState('squad');
+
+  const { data: matchesResp, loading: matchesLoading } = useApi(`/teams/${team.id}/matches`);
+  const matches = matchesResp?.data || [];
+
+  const teamPlayers = useMemo(
+    () => allPlayers.filter(p => p.team_id === team.id),
+    [allPlayers, team.id]
+  );
+
+  const playersByPosition = useMemo(() => {
+    const groups = {};
+    for (const pos of POSITION_ORDER) {
+      const inPos = teamPlayers.filter(p => p.position === pos);
+      if (inPos.length > 0) groups[pos] = inPos;
+    }
+    teamPlayers.forEach(p => {
+      if (!POSITION_ORDER.includes(p.position) && p.position) {
+        if (!groups[p.position]) groups[p.position] = [];
+        if (!groups[p.position].find(x => x.id === p.id)) groups[p.position].push(p);
+      }
+    });
+    return groups;
+  }, [teamPlayers]);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl sm:text-5xl font-black tracking-tighter uppercase">
+          {team.name} <span className="text-zinc-600">Overview</span>
+        </h1>
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 px-4 py-2 border border-white/10 bg-white/5 rounded-lg hover:bg-white/10 transition-colors text-sm font-bold"
+        >
+          <ArrowLeft size={16} />
+          <span className="hidden sm:inline">Back to Teams</span>
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-white/5 p-1 rounded-xl w-fit border border-white/10">
+        {['squad', 'matches'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-widest transition-colors ${
+              activeTab === tab ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            {tab === 'squad' ? 'Squad' : 'Matches'}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'squad' ? (
+        teamPlayers.length === 0 ? (
+          <div className="py-16 text-center border border-white/5 bg-white/5 rounded-2xl">
+            <Shield className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+            <p className="text-zinc-400 font-bold uppercase tracking-widest text-sm">No players registered yet.</p>
+          </div>
+        ) : (
+          /* Two-column roster layout matching reference image */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+            {Object.entries(playersByPosition).map(([position, players]) => (
+              <div key={position}>
+                <h3 className="text-base font-bold text-white mb-3">
+                  {POSITION_LABELS[position] || position}
+                </h3>
+                <div>
+                  {players.map(player => (
+                    <PlayerRow key={player.id} player={player} onSelect={onSelectPlayer} />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       ) : (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {teamPlayers.length > 0 ? (
-            teamPlayers.map((player) => (
-              <div key={player.id} className="relative group overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 active:scale-[0.98] transition-transform duration-200">
-                <div className="aspect-[4/5] relative">
-                  <img src={player.imgUrl} alt={player.name} className="w-full h-full object-cover md:grayscale md:opacity-70 md:group-hover:grayscale-0 md:group-hover:opacity-100 transition-all duration-500" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-                </div>
-                <div className="absolute bottom-0 w-full p-6 text-center">
-                  <h3 className="text-2xl font-black uppercase mb-1">{player.name}</h3>
-                  <p className="text-zinc-400 tracking-widest text-sm">{player.club}</p>
-                  <div className="mt-4 flex justify-between px-4 py-2 bg-white/5 rounded-lg border border-white/10">
-                    <div className="text-center">
-                      <div className="text-xs text-zinc-500 uppercase">Pace</div>
-                      <div className="font-mono text-zinc-300">{player.pace}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xs text-zinc-500 uppercase">Shoot</div>
-                      <div className="font-mono text-zinc-300">{player.shooting}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xs text-zinc-500 uppercase">Pass</div>
-                      <div className="font-mono text-zinc-300">{player.passing}</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="absolute top-4 right-4 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
-                  <span className="font-mono font-bold">{player.rating}</span>
-                </div>
-              </div>
-            ))
+        /* Matches tab */
+        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+          {matchesLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
+            </div>
+          ) : matches.length === 0 ? (
+            <div className="py-12 text-center">
+              <Calendar className="w-10 h-10 text-zinc-600 mx-auto mb-3" />
+              <p className="text-zinc-500 font-bold uppercase tracking-widest text-sm">No matches found.</p>
+            </div>
           ) : (
-            <div className="col-span-full py-12 text-center border border-white/5 bg-white/5 rounded-2xl">
-              <Shield className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-              <p className="text-zinc-400">No players found for this team in mock data.</p>
+            <div className="p-4">
+              {matches.map(match => (
+                <MatchRow key={match.id} match={match} teamId={team.id} />
+              ))}
             </div>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+export function Teams() {
+  const { setView: setLeagueView } = useLeague();
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+
+  const { data: teamsResp, loading: teamsLoading, error: teamsError } = useApi('/teams');
+  const { data: playersResp } = useApi('/players');
+
+  const teams = useMemo(() => {
+    const raw = teamsResp?.data || [];
+    return raw.filter(t => t.name);
+  }, [teamsResp]);
+
+  const allPlayers = playersResp?.data || [];
+
+  const handleSelectPlayer = (player) => {
+    setSelectedPlayer(player);
+    // Store player in league context and navigate to profile view
+    setLeagueView('player-profile');
+    // Pass player data via sessionStorage so PlayerProfile can pick it up
+    sessionStorage.setItem('selectedPlayer', JSON.stringify(player));
+  };
+
+  if (teamsLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-zinc-500 animate-pulse space-y-4">
+        <Loader2 className="w-12 h-12 animate-spin text-white/20" />
+        <span className="font-black tracking-[0.3em] uppercase text-sm">Loading Teams...</span>
+      </div>
+    );
+  }
+
+  if (teamsError || teams.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-zinc-500 space-y-4">
+        <Shield className="w-12 h-12 text-zinc-700" />
+        <span className="font-black tracking-[0.3em] uppercase text-sm">No teams found</span>
+      </div>
+    );
+  }
+
+  if (selectedTeam) {
+    return (
+      <TeamOverview
+        team={selectedTeam}
+        allPlayers={allPlayers}
+        onBack={() => setSelectedTeam(null)}
+        onSelectPlayer={handleSelectPlayer}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500 pb-12">
+      <h1 className="text-3xl sm:text-5xl font-black tracking-tighter uppercase">
+        Teams <span className="text-zinc-600">Overview</span>
+      </h1>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {teams.map((team) => {
+          const playerCount = allPlayers.filter(p => p.team_id === team.id).length;
+          return (
+            <div
+              key={team.id}
+              onClick={() => setSelectedTeam(team)}
+              className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/5 bg-white/5 transition-all duration-300 hover:border-white/20 hover:scale-[1.02]"
+            >
+              <div
+                className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-300"
+                style={{ background: generateGradient(team.name) }}
+              />
+              <div className="relative p-8 flex flex-col items-center justify-center text-center gap-3 h-52">
+                {team.logo_url ? (
+                  <img src={team.logo_url} alt={team.name} className="w-14 h-14 object-contain" />
+                ) : (
+                  <Shield className="w-12 h-12 text-white/80 group-hover:text-white transition-colors" />
+                )}
+                <h3 className="text-xl sm:text-2xl font-bold tracking-widest uppercase">{team.name}</h3>
+                {playerCount > 0 && (
+                  <span className="flex items-center gap-1 text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                    <Users size={12} /> {playerCount} Players
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

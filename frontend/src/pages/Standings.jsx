@@ -179,7 +179,7 @@ export function Standings() {
               const promotes = idx < 4;
               return (
                 <div 
-                  key={team.club} 
+                  key={team.teamId} // Changed from team.club
                   className={`
                     grid grid-cols-[4rem_1.5fr_3rem_3rem_3rem_3rem_3rem_3rem_3rem_4rem_10rem] gap-2 p-4 items-center 
                     ${idx !== standings.length - 1 ? 'border-b border-white/5' : ''} 
@@ -188,21 +188,32 @@ export function Standings() {
                   `}
                 >
                   <div className="font-mono text-xl font-bold text-center text-zinc-400">{team.rank}</div>
-                  <div className="font-bold text-lg">{team.club}</div>
-                  <div className="text-center text-zinc-400">{team.mp}</div>
-                  <div className="text-center text-zinc-400">{team.w}</div>
-                  <div className="text-center text-zinc-400">{team.d}</div>
-                  <div className="text-center text-zinc-400">{team.l}</div>
-                  <div className="text-center text-zinc-400">{team.gf}</div>
-                  <div className="text-center text-zinc-400">{team.ga}</div>
-                  <div className="text-center font-mono text-zinc-300">{team.gd > 0 ? `+${team.gd}` : team.gd}</div>
-                  <div className="text-center font-black text-2xl">{team.pts}</div>
+                  
+                  {/* Changed to teamName */}
+                  <div className="font-bold text-lg">{team.teamName}</div>
+                  
+                  {/* Mapped all stats to team.stats object with optional chaining */}
+                  <div className="text-center text-zinc-400">{team.stats?.matchesPlayed || 0}</div>
+                  <div className="text-center text-zinc-400">{team.stats?.won || 0}</div>
+                  <div className="text-center text-zinc-400">{team.stats?.drawn || 0}</div>
+                  <div className="text-center text-zinc-400">{team.stats?.lost || 0}</div>
+                  <div className="text-center text-zinc-400">{team.stats?.goalsFor || 0}</div>
+                  <div className="text-center text-zinc-400">{team.stats?.goalsAgainst || 0}</div>
+                  
+                  {/* Safely handle Goal Difference */}
+                  <div className="text-center font-mono text-zinc-300">
+                    {team.stats?.goalDifference > 0 ? `+${team.stats?.goalDifference}` : (team.stats?.goalDifference || 0)}
+                  </div>
+                  
+                  {/* Points */}
+                  <div className="text-center font-black text-2xl">{team.stats?.points || 0}</div>
+                  
                   <div className="pl-4 hidden sm:block">
-                    <FormGuide form={team.form} />
+                    <FormGuide form={team.form || []} />
                   </div>
                   {/* Small form indicator for tiny screens */}
                   <div className="pl-4 block sm:hidden text-xs tracking-widest text-zinc-400">
-                    {team.form.join('')}
+                    {(team.form || []).join('')}
                   </div>
                 </div>
               );

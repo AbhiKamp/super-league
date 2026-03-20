@@ -1,21 +1,30 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-export const revalidate = 60; // Cache this aggregation route for 60s
+export const revalidate = 0; // Turn off caching temporarily so you can test the toggle instantly!
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export async function GET() {
+// ADDED request: Request to read the URL!
+export async function GET(request: Request) {
   try {
-    // 1. Fetch Top 4 Standings
-    const { data: standings } = await supabase
+    const { searchParams } = new URL(request.url);
+    const division = searchParams.get('division') || 'mens';
+
+    // 1. Fetch Top 4 Standings (Filtered)
+    const { data: standings, error: standingsErr } = await supabase
       .from('league_standings')
       .select('*')
+      .eq('division', division) 
       .order('rank', { ascending: true })
       .limit(4);
 
+    // If Supabase gets mad, it will print the exact reason in your backend terminal!
+    if (standingsErr) {
+      console.error("Supabase Standings Error:", standingsErr.message);
+    }
     // 2. Fetch Latest 5 News Items
     const { data: news } = await supabase
       .from('newsletter')
@@ -23,30 +32,32 @@ export async function GET() {
       .order('date', { ascending: false })
       .limit(5);
 
-    // 3. Fetch Top Scorer & Top Assist (from leaderboard View)
+    // 3. Fetch Top Scorer & Top Assist (Filtered)
     const { data: scorers } = await supabase
       .from('top_scorers')
       .select('*')
+      .eq('division', division) // MAGIC LINE
       .order('goalsScored', { ascending: false })
       .limit(1);
 
     const assistsResp = await supabase
       .from('top_scorers')
-      // Note: We are mocking top assist order locally if the DB doesn't support 'assists' column ordering yet, but assuming it exists:
       .select('*')
+      .eq('division', division) // MAGIC LINE
       .order('assists', { ascending: false })
       .limit(1);
     
     const assists = assistsResp.error ? scorers : assistsResp.data;
 
-    // 4. Fetch the most recent Live/Upcoming match from Schedule
+    // 4. Fetch the most recent Live/Upcoming match from Schedule (Filtered)
     const { data: schedule } = await supabase
       .from('league_schedule')
       .select('*')
-      .order('date', { ascending: true }) // Upcoming
+      .eq('division', division) // MAGIC LINE
+      .order('date', { ascending: true })
       .limit(1);
 
-    // Provide a mocked live match if the database schedule is empty (until actual matches exist)
+    // Provide a mocked live match if the database schedule is empty
     const liveMatch = schedule && schedule.length > 0 ? {
       homeTeam: schedule[0].home_team || "Team A",
       awayTeam: schedule[0].away_team || "Team B",
@@ -56,8 +67,8 @@ export async function GET() {
       homeForm: ['W','D','L','W','W'],
       awayForm: ['L','L','D','W','L']
     } : {
-      homeTeam: "BETA FC",
-      awayTeam: "CHARLIE UTD",
+      homeTeam: division === 'womens' ? "KULASTHREE FC" : "BETA FC",
+      awayTeam: division === 'womens' ? "FAAAH UTD" : "CHARLIE UTD",
       homeScore: 2,
       awayScore: 1,
       minute: "72",
@@ -65,7 +76,7 @@ export async function GET() {
       awayForm: ['L','L','D','W','L']
     };
 
-    // 5. Mock Fantasy Leaderboard points (Phase 3 pending 'points' column in DB)
+    // 5. Mock Fantasy Leaderboard points
     const fantasyTop = [
       { id: 1, name: "Sreerag", points: 8520 },
       { id: 2, name: "Pranav", points: 8150 },

@@ -8,7 +8,8 @@ import { Leaderboard } from './pages/Leaderboard';
 import { Vault } from './pages/Vault';
 import { Login } from './pages/Login';
 import { ArticleView } from './pages/ArticleView';
-
+import PlayerProfile from './components/PlayerProfile';
+import { AdminDashboard } from './pages/AdminDashboard';
 export function Layout() {
   const { view } = useLeague();
 
@@ -22,6 +23,7 @@ export function Layout() {
       case 'login': return <Login />;
       case 'vault': return <Vault />;
       case 'article': return <ArticleView />;
+      case 'player-profile': return <PlayerProfile />;
       default:
         return (
           <div className="flex-1 flex items-center justify-center min-h-[50vh]">

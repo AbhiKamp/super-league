@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { checkRateLimit } from './lib/rate-limit'; // Import our new shield!
+import { checkRateLimit } from './lib/rate-limit'; 
 
 export async function proxy(request: NextRequest) {
   const isMutation = ['POST', 'PUT', 'DELETE'].includes(request.method);
   
-  // 1. PUBLIC READ RATE LIMIT (60 requests / minute)
-  // THE COLLEGE WIFI FIX: We combine IP + User-Agent to identify specific devices on the same network
+  // 1. PUBLIC READ RATE LIMIT 
   if (!isMutation) {
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
     const userAgent = request.headers.get('user-agent') || 'unknown-device';
@@ -21,12 +20,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
- // 2. EXCEPTIONS: Let specific routes pass through!
+  // 2. EXCEPTIONS
   if (request.nextUrl.pathname === '/api/auth/login') {
     return NextResponse.next();
   }
 
-  // Allow public voting, but rate-limit it by IP so fans can't spam it!
   if (request.nextUrl.pathname === '/api/polls/vote') {
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
     const voteLimitCheck = checkRateLimit(`vote_${ip}`, 5, 60 * 1000);
@@ -37,7 +35,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3. MUTATION SECURITY & RATE LIMITING (5 requests / minute)
+  // 3. MUTATION SECURITY 
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -57,18 +55,31 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // THE MAGIC FIX: Read the Bearer token from the header we sent from the frontend!
+  const authHeader = request.headers.get('Authorization');
+  let user = null;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    // Pass the token directly to Supabase so it doesn't need cookies!
+    const { data } = await supabase.auth.getUser(token);
+    user = data?.user;
+  } else {
+    // Fallback just in case
+    const { data } = await supabase.auth.getUser();
+    user = data?.user;
+  }
 
   // Block unauthorized users immediately
   if (!user) {
     return NextResponse.json(
-      { success: false, message: 'Unauthorized: Middleware blocked request' },
+      { success: false, message: 'Unauthorized: Middleware blocked request. Token missing or invalid.' },
       { status: 401 }
     );
   }
 
-  // Rate limit authenticated admins by their exact User ID! (5 per minute)
-  const adminLimitCheck = checkRateLimit(`admin_${user.id}`, 5, 60 * 1000);
+  // BUMPED TO 100: So you can actually build your roster without getting rate-limited!
+  const adminLimitCheck = checkRateLimit(`admin_${user.id}`, 100, 60 * 1000);
   
   if (!adminLimitCheck.success) {
     return NextResponse.json({ success: false, message: 'Too Many Requests (Admin Limit Reached)' }, { status: 429 });

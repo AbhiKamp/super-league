@@ -5,6 +5,10 @@ import { Layout } from './Layout';
 import { Loader } from './components/Loader';
 import { Onboarding } from './pages/Onboarding';
 
+// 1. IMPORT YOUR NEW ADMIN PAGES!
+import { AdminLogin } from './pages/AdminLogin';
+import { AdminDashboard } from './pages/AdminDashboard';
+
 function AuthGuard() {
   const { user, profile, loading } = useAuth();
   const [initialLoading, setInitialLoading] = useState(true);
@@ -26,8 +30,8 @@ function AuthGuard() {
     );
   }
 
-  // Force onboarding if logged in but no profile
-  if (user && !profile) {
+  // Force onboarding if logged in but profile is incomplete (no nickname set yet)
+  if (user && (!profile || !profile.nickname || !profile.team_flair_id)) {
     return <Onboarding />;
   }
 
@@ -40,6 +44,29 @@ function AuthGuard() {
 }
 
 function App() {
+  // 2. THE SECRET DOOR ROUTER
+  const path = window.location.pathname;
+
+  if (path === '/hq-login') {
+    return (
+      <AuthProvider>
+        <AdminLogin />
+      </AuthProvider>
+    );
+  }
+
+  if (path === '/admin') {
+    return (
+      <AuthProvider>
+        {/* We wrap this in LeagueProvider so your useApi hook can still read the division! */}
+        <LeagueProvider> 
+          <AdminDashboard />
+        </LeagueProvider>
+      </AuthProvider>
+    );
+  }
+
+  // 3. THE NORMAL STUDENT APP
   return (
     <AuthProvider>
       <AuthGuard />

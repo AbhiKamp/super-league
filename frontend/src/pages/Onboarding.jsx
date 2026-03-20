@@ -13,7 +13,7 @@ export function Onboarding() {
   const [error, setError] = useState(null);
 
   const { data: standingsResp } = useApi('/standings');
-  const allTeams = standingsResp?.data || [];
+  const allTeams = standingsResp?.data?.standings || standingsResp?.data || [];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,26 +22,25 @@ export function Onboarding() {
     setSaving(true);
     setError(null);
 
-    const newProfile = {
-      id: user.id,
-      email: user.email,
-      real_name: user.user_metadata?.full_name || user.email.split('@')[0],
+    const updatedProfile = {
       nickname: nickname.trim(),
       team_flair_id: flair,
     };
 
-    const { error: insertError } = await supabase
-      .from('profiles')
-      .insert([newProfile]);
+    // The trigger already created the user_profiles row on signup — we just UPDATE it
+    const { error: updateError } = await supabase
+      .from('user_profiles')
+      .update(updatedProfile)
+      .eq('id', user.id);
 
-    if (insertError) {
-      console.error("Profile saving error:", insertError.message);
+    if (updateError) {
+      console.error("Profile saving error:", updateError.message);
       setError("Failed to save profile. Are you sure you are online?");
       setSaving(false);
       return;
     }
 
-    setProfile(newProfile);
+    setProfile({ id: user.id, email: user.email, ...updatedProfile });
     setSaving(false);
   };
 
@@ -95,9 +94,11 @@ export function Onboarding() {
             >
               <option value="" disabled>Select a Club...</option>
               {allTeams.map((t) => (
-                <option key={t.club} value={t.club} className="bg-zinc-900">{t.club}</option>
+                <option key={t.teamId} value={t.teamName} className="bg-zinc-900">
+                  {t.teamName}
+                </option>
               ))}
-            </select>
+                </select>
             <p className="text-[10px] text-zinc-600 uppercase tracking-wider mt-2 ml-1">Shows your allegiance next to your name.</p>
           </div>
 

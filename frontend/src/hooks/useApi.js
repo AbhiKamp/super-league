@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
+import { useLeague } from '../context/LeagueContext';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 /**
  * A React Hook for standard GET requests to the backend API.
  * Automatically injects the Supabase JWT Authorization header.
@@ -12,46 +11,38 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
  */
 export function useApi(endpoint) {
   const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { division } = useLeague(); // <--- Get the current division
 
   const fetchData = useCallback(async () => {
     if (!endpoint) return;
     
     try {
       setLoading(true);
-      setError(null);
-      
       const { data: { session } } = await supabase.auth.getSession();
       
-      const headers = {};
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
+      const headers = session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {};
       
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
+      // Append the division to the API URL!
+      const separator = endpoint.includes('?') ? '&' : '?';
+      const urlWithDivision = `${API_BASE_URL}${endpoint}${separator}division=${division}`;
       
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
-      }
-      
+      const response = await fetch(urlWithDivision, { headers });
       const result = await response.json();
       setData(result);
     } catch (err) {
-      console.error(`Failed to fetch ${endpoint}:`, err);
-      setError(err);
+      console.error("API Error:", err);
     } finally {
       setLoading(false);
     }
-  }, [endpoint]);
+  }, [endpoint, division]); // <--- Add division to the dependency array!
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  return { data, error, loading, refetch: fetchData };
+  return { data, loading, refetch: fetchData };
 }
-
 /**
  * A utility function for mutations (POST, PUT, DELETE) to the backend API.
  * Automatically injects the Supabase JWT Authorization header.

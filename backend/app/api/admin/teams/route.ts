@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { handleError } from '../../../../lib/errorHandler';
+import { handleError } from '../../../../lib/errorHandler'; // Adjust path if needed
 
 async function getSupabaseClient() {
   const cookieStore = await cookies();
@@ -10,79 +10,76 @@ async function getSupabaseClient() {
   });
 }
 
-// CREATE A MATCH (Schedule a new game)
+// CREATE A TEAM
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const supabase = await getSupabaseClient();
 
+    // Security check
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw { status: 401, message: "Unauthorized" };
+
     const { data, error } = await supabase
-      .from('matches')
+      .from('teams')
       .insert([{
-        home_team_id: body.home_team_id,
-        away_team_id: body.away_team_id,
-        date: body.date,
-        venue: body.venue,
-        status: 'scheduled', // Default status for new games
-        home_score: 0,
-        away_score: 0
+        name: body.name,
+        logo_url: body.logo_url || null,
+        division: body.division || 'mens' // Default to men's league if not specified
       }])
       .select()
       .single();
 
     if (error) throw error;
-    return NextResponse.json({ success: true, message: "Match scheduled successfully", data });
+    return NextResponse.json({ success: true, message: "Team created successfully", data });
   } catch (error) {
-    return handleError(error, "Admin Create Match");
+    return handleError(error, "Admin Create Team");
   }
 }
 
-// UPDATE A MATCH (Reschedule date/venue or fix teams)
+// UPDATE A TEAM
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    
-    if (!body.id) throw { status: 400, message: "Match ID is required for updates." };
+    if (!body.id) throw { status: 400, message: "Team ID is required." };
 
     const supabase = await getSupabaseClient();
 
     const { data, error } = await supabase
-      .from('matches')
+      .from('teams')
       .update({
-        home_team_id: body.home_team_id,
-        away_team_id: body.away_team_id,
-        date: body.date,
-        venue: body.venue
+        name: body.name,
+        logo_url: body.logo_url,
+        division: body.division
       })
       .eq('id', body.id)
       .select()
       .single();
 
     if (error) throw error;
-    return NextResponse.json({ success: true, message: "Match rescheduled successfully", data });
+    return NextResponse.json({ success: true, message: "Team updated successfully", data });
   } catch (error) {
-    return handleError(error, "Admin Update Match");
+    return handleError(error, "Admin Update Team");
   }
 }
 
-// DELETE A MATCH (Cancel a game entirely from the database)
+// DELETE A TEAM
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-
-    if (!id) throw { status: 400, message: "Match ID is required for deletion." };
+    if (!id) throw { status: 400, message: "Team ID is required." };
 
     const supabase = await getSupabaseClient();
 
     const { error } = await supabase
-      .from('matches')
+      .from('teams')
       .delete()
       .eq('id', id);
 
     if (error) throw error;
-    return NextResponse.json({ success: true, message: "Match deleted successfully" });
+    return NextResponse.json({ success: true, message: "Team deleted successfully" });
   } catch (error) {
-    return handleError(error, "Admin Delete Match");
+    return handleError(error, "Admin Delete Team");
   }
 }

@@ -135,11 +135,21 @@ export function Home() {
                   </div>
                   <div className="flex flex-col">
                     {top4.map((team, idx) => (
-                      <div key={team.club} className={`grid grid-cols-[3rem_minmax(120px,1fr)_3rem_3rem] gap-2 p-4 sm:p-5 items-center ${idx !== top4.length - 1 ? 'border-b border-white/5' : ''} hover:bg-white/10 transition-colors cursor-pointer`} onClick={() => setView('standings')}>
+                      <div key={team.teamId} className={`grid grid-cols-[3rem_minmax(120px,1fr)_3rem_3rem] gap-2 p-4 sm:p-5 items-center ${idx !== top4.length - 1 ? 'border-b border-white/5' : ''} hover:bg-white/10 transition-colors cursor-pointer`} onClick={() => setView('standings')}>
                         <div className="font-mono text-base sm:text-lg font-black text-center text-zinc-400">{team.rank}</div>
-                        <div className="font-black text-sm sm:text-lg truncate tracking-tight text-white uppercase">{team.club}</div>
-                        <div className="text-right text-zinc-500 font-mono font-bold text-sm sm:text-base">{team.gd > 0 ? `+${team.gd}` : team.gd}</div>
-                        <div className="text-right font-black text-xl sm:text-2xl text-transparent bg-clip-text bg-gradient-to-l from-white to-zinc-400 mr-2">{team.pts}</div>
+                        
+                        {/* Map to teamName */}
+                        <div className="font-black text-sm sm:text-lg truncate tracking-tight text-white uppercase">{team.teamName}</div>
+                        
+                        {/* Map to stats.goalDifference (Added optional chaining just to be safe!) */}
+                        <div className="text-right text-zinc-500 font-mono font-bold text-sm sm:text-base">
+                          {team.stats?.goalDifference > 0 ? `+${team.stats?.goalDifference}` : team.stats?.goalDifference}
+                        </div>
+                        
+                        {/* Map to stats.points */}
+                        <div className="text-right font-black text-xl sm:text-2xl text-transparent bg-clip-text bg-gradient-to-l from-white to-zinc-400 mr-2">
+                          {team.stats?.points}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -158,9 +168,7 @@ export function Home() {
           />
           <div className="space-y-4 flex-1">
             {newsItems.map((article, idx) => (
-               <div key={article.id || idx}>
-                 <NewsArticle article={article} />
-               </div>
+              <NewsArticle key={article.id || idx} article={article} />
             ))}
           </div>
         </div>

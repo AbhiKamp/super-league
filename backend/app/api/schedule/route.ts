@@ -25,20 +25,39 @@ export async function GET(request: Request) {
       }
     );
 
-    // Using your 'league_schedule' view from the database schema
+    // Fetch upcoming/live matches from the matches table directly
+    // (includes team IDs needed for player filtering)
     const { data, count, error } = await supabase
-      .from('league_schedule')
-      .select('*', { count: 'exact' })
-      .order('date', { ascending: true }) // Oldest/upcoming matches first
+      .from('matches')
+      .select(`
+        id, date, venue, status, home_score, away_score,
+        home_team:teams!matches_home_team_id_fkey ( id, name ),
+        away_team:teams!matches_away_team_id_fkey ( id, name )
+      `, { count: 'exact' })
+      .in('status', ['upcoming', 'live', 'scheduled'])
+      .order('date', { ascending: true })
       .range(from, to);
 
     if (error) throw error;
 
     const totalPages = count ? Math.ceil(count / limit) : 0;
 
+    const shaped = (data || []).map((m: any) => ({
+      id: m.id,
+      date: m.date,
+      venue: m.venue,
+      status: m.status,
+      home_score: m.home_score,
+      away_score: m.away_score,
+      home_team: m.home_team?.name || 'TBD',
+      away_team: m.away_team?.name || 'TBD',
+      home_team_id: m.home_team?.id || null,
+      away_team_id: m.away_team?.id || null,
+    }));
+
     return NextResponse.json({
       success: true,
-      data: data,
+      data: shaped,
       meta: {
         total_items: count,
         total_pages: totalPages,
