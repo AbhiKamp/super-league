@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApi } from '../../hooks/useApi';
 import { Calendar, Swords } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export default function ScheduleMatches() {
   const [division, setDivision] = useState('mens');
@@ -24,7 +25,7 @@ export default function ScheduleMatches() {
       const { data: { session } } = await supabase.auth.getSession();
 
       // 2. Fix the URL and add the Auth Headers!
-      const res = await fetch('/api/admin/matches', { 
+      const res = await fetch(`${API_URL}/admin/matches`, { 
         method: 'POST',
         credentials: 'include', 
         headers: { 

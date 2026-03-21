@@ -7,7 +7,8 @@ import { Onboarding } from './pages/Onboarding';
 // 1. IMPORT YOUR NEW ADMIN PAGES!
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminDashboard } from './pages/AdminDashboard';
-
+import MatchTimeline from './components/MatchTimeline'; 
+import PlayerProfile from './components/PlayerProfile';
 function AuthGuard() {
   const { user, profile, loading } = useAuth();
   const [initialLoading, setInitialLoading] = useState(true);

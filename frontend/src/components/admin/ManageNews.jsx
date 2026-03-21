@@ -4,7 +4,7 @@ import { Newspaper, Trash2, Plus, Image as ImageIcon, Type, Quote, UploadCloud }
 import { supabase } from '../../lib/supabase';
 
 export default function ManageNews() {
-  const { data: newsResp, refetch: refetchNews } = useApi('/newsletter'); 
+  const { data: newsResp, refetch: refetchNews } = useApi('/news'); 
   const newsList = newsResp?.data || [];
 
   const [loading, setLoading] = useState(false);
