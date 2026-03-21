@@ -47,49 +47,63 @@ function PlayerRow({ player, onSelect }) {
   );
 }
 
-function MatchRow({ match, teamId }) {
+// FIXED: Fully Responsive MatchCard Component
+function MatchCard({ match, teamId, onClick }) {
   const isHome = match.home_team_id === teamId;
   const opponent = isHome ? match.away_team : match.home_team;
-  const teamScore = isHome ? match.home_score : match.away_score;
-  const oppScore = isHome ? match.away_score : match.home_score;
-
-  let result = null;
-  let resultColor = 'text-zinc-500';
-  if (match.status === 'completed') {
-    if (teamScore > oppScore) { result = 'W'; resultColor = 'text-green-400'; }
-    else if (teamScore < oppScore) { result = 'L'; resultColor = 'text-red-400'; }
-    else { result = 'D'; resultColor = 'text-yellow-400'; }
-  }
-
-  const dateStr = match.date
-    ? new Date(match.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-    : '—';
+  const curr = isHome ? match.home_team : match.away_team;
+  
+  // Add fallback names if the join fails
+  const homeName = isHome ? curr : opponent;
+  const awayName = !isHome ? curr : opponent;
 
   return (
-    <div className="flex items-center justify-between py-3 px-2 border-b border-white/5 text-sm">
-      <div className="flex items-center gap-3 min-w-0">
-        <span className="text-zinc-500 font-mono text-xs w-12 shrink-0">{dateStr}</span>
-        <span className="text-zinc-400 text-xs uppercase shrink-0">{isHome ? 'vs' : '@'}</span>
-        <span className="font-bold text-white truncate">{opponent}</span>
+    <div 
+      onClick={onClick}
+      // MOBILE FIX: Reduced padding from p-6 to p-4 on small screens
+      className="bg-[#1A1820] border border-white/5 hover:border-white/20 rounded-2xl p-4 sm:p-6 cursor-pointer hover:bg-white/5 transition-all group relative overflow-hidden"
+    >
+      {/* MOBILE FIX: Reduced text size and margin on the top bar */}
+      <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4 sm:mb-6">
+        <span className="flex items-center gap-1.5 sm:gap-2">
+          <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> 
+          {match.date ? new Date(match.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBA'}
+        </span>
+        <span className={match.status === 'live' ? 'text-red-500 animate-pulse' : 'text-zinc-400'}>
+          {match.status === 'live' ? `LIVE • ${match.minute || "1'"}` : match.status}
+        </span>
       </div>
-      <div className="flex items-center gap-3 shrink-0 ml-4">
-        {match.status === 'completed' ? (
-          <>
-            <span className="font-mono font-bold text-white">{teamScore}–{oppScore}</span>
-            <span className={`font-black text-xs w-5 text-center ${resultColor}`}>{result}</span>
-          </>
-        ) : (
-          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
-            {match.status === 'live' ? '🔴 Live' : 'Upcoming'}
-          </span>
-        )}
+
+      {/* MOBILE FIX: Reduced gap between columns on small screens */}
+      <div className="flex items-center justify-between gap-2 sm:gap-4 w-full">
+        {/* Home Team */}
+        <div className="flex-1 text-right flex flex-col justify-center">
+          {/* MOBILE FIX: Smaller font (text-[13px]), removed truncate so names naturally stack on mobile! */}
+          <h3 className={`text-[13px] sm:text-xl md:text-2xl font-black uppercase tracking-tight leading-tight ${isHome ? 'text-white' : 'text-zinc-400'}`}>
+            {homeName}
+          </h3>
+        </div>
+        
+        {/* Score / VS */}
+        {/* MOBILE FIX: Shrunk the score box padding and font size for mobile */}
+        <div className="bg-black/60 px-3 py-2 sm:px-6 sm:py-3 rounded-xl border border-white/10 font-black text-xl sm:text-3xl tabular-nums text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-500 shadow-xl shrink-0">
+          {match.status === 'scheduled' ? 'VS' : `${match.home_score || 0} - ${match.away_score || 0}`}
+        </div>
+
+        {/* Away Team */}
+        <div className="flex-1 text-left flex flex-col justify-center">
+          {/* MOBILE FIX: Smaller font (text-[13px]), removed truncate so names naturally stack on mobile! */}
+          <h3 className={`text-[13px] sm:text-xl md:text-2xl font-black uppercase tracking-tight leading-tight ${!isHome ? 'text-white' : 'text-zinc-400'}`}>
+            {awayName}
+          </h3>
+        </div>
       </div>
     </div>
   );
 }
 
-function TeamOverview({ team, allPlayers, onBack, onSelectPlayer }) {
-  const [activeTab, setActiveTab] = useState('squad');
+function TeamOverview({ team, allPlayers, onBack, onSelectPlayer, onSelectMatch }) {
+  const [activeTab, setActiveTab] = useState('matches');
 
   const { data: matchesResp, loading: matchesLoading } = useApi(`/teams/${team.id}/matches`);
   const matches = matchesResp?.data || [];
@@ -123,7 +137,7 @@ function TeamOverview({ team, allPlayers, onBack, onSelectPlayer }) {
         </h1>
         <button
           onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2 border border-white/10 bg-white/5 rounded-lg hover:bg-white/10 transition-colors text-sm font-bold"
+          className="flex items-center gap-2 px-3 py-2 sm:px-4 border border-white/10 bg-white/5 rounded-lg hover:bg-white/10 transition-colors text-sm font-bold"
         >
           <ArrowLeft size={16} />
           <span className="hidden sm:inline">Back to Teams</span>
@@ -132,7 +146,7 @@ function TeamOverview({ team, allPlayers, onBack, onSelectPlayer }) {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-white/5 p-1 rounded-xl w-fit border border-white/10">
-        {['squad', 'matches'].map(tab => (
+        {['matches', 'squad'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -152,7 +166,6 @@ function TeamOverview({ team, allPlayers, onBack, onSelectPlayer }) {
             <p className="text-zinc-400 font-bold uppercase tracking-widest text-sm">No players registered yet.</p>
           </div>
         ) : (
-          /* Two-column roster layout matching reference image */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
             {Object.entries(playersByPosition).map(([position, players]) => (
               <div key={position}>
@@ -170,20 +183,25 @@ function TeamOverview({ team, allPlayers, onBack, onSelectPlayer }) {
         )
       ) : (
         /* Matches tab */
-        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+        <div className="space-y-4">
           {matchesLoading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-12 border border-white/5 bg-white/5 rounded-2xl">
               <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
             </div>
           ) : matches.length === 0 ? (
-            <div className="py-12 text-center">
+            <div className="py-12 text-center border border-white/5 bg-white/5 rounded-2xl">
               <Calendar className="w-10 h-10 text-zinc-600 mx-auto mb-3" />
               <p className="text-zinc-500 font-bold uppercase tracking-widest text-sm">No matches found.</p>
             </div>
           ) : (
-            <div className="p-4">
+            <div className="grid grid-cols-1 gap-4">
               {matches.map(match => (
-                <MatchRow key={match.id} match={match} teamId={team.id} />
+                <MatchCard 
+                  key={match.id} 
+                  match={match} 
+                  teamId={team.id} 
+                  onClick={() => onSelectMatch(match)}
+                />
               ))}
             </div>
           )}
@@ -210,10 +228,14 @@ export function Teams() {
 
   const handleSelectPlayer = (player) => {
     setSelectedPlayer(player);
-    // Store player in league context and navigate to profile view
-    setLeagueView('player-profile');
-    // Pass player data via sessionStorage so PlayerProfile can pick it up
     sessionStorage.setItem('selectedPlayer', JSON.stringify(player));
+    setLeagueView('player-profile');
+  };
+
+  const handleSelectMatch = (match) => {
+    sessionStorage.setItem('selectedMatch', JSON.stringify(match));
+    sessionStorage.setItem('matchSource', 'teams'); // <-- ADD THIS
+    setLeagueView('matchTimeline'); 
   };
 
   if (teamsLoading) {
@@ -241,6 +263,7 @@ export function Teams() {
         allPlayers={allPlayers}
         onBack={() => setSelectedTeam(null)}
         onSelectPlayer={handleSelectPlayer}
+        onSelectMatch={handleSelectMatch} 
       />
     );
   }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApi } from '../../hooks/useApi';
 import { UserPlus, Trash2, Copy, Check, UploadCloud } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const initialFormState = { 
   first_name: '', last_name: '', team_id: '', position: '', alt_positions: '', jersey_number: '', overall_rating: 50, 
@@ -109,7 +110,7 @@ export default function ManagePlayers() {
         }
       };
 
-      const res = await fetch('/api/admin/players', {
+      const res = await fetch(`${API_URL}/admin/players`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
