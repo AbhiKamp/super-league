@@ -69,7 +69,7 @@ export default function ManageTeams() {
     if (!confirm("Are you sure? This might break matches associated with this team!")) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      await fetch(`/api/admin/teams?id=${id}`, { 
+      await fetch(`${API_URL}/admin/teams?id=${id}`, { 
         method: 'DELETE',
         credentials: 'include',
         headers: { 'Authorization': `Bearer ${session?.access_token}` }
