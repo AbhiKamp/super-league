@@ -104,7 +104,9 @@ function MatchCard({ match, teamId, onClick }) {
 }
 
 function TeamOverview({ team, allPlayers, onBack, onSelectPlayer, onSelectMatch }) {
-    const [activeTab, setActiveTab] = useState('matches');
+    const [activeTab, setActiveTab] = useState(() => {
+        return sessionStorage.getItem('activeTeamTab') || 'matches';
+    });
 
     const { data: matchesResp, loading: matchesLoading } = useApi(`/teams/${team.id}/matches`);
     const matches = matchesResp?.data || [];
@@ -150,7 +152,10 @@ function TeamOverview({ team, allPlayers, onBack, onSelectPlayer, onSelectMatch 
                 {['matches', 'squad'].map(tab => (
                     <button
                         key={tab}
-                        onClick={() => setActiveTab(tab)}
+                        onClick={() => {
+                            setActiveTab(tab);
+                            sessionStorage.setItem('activeTeamTab', tab); // <-- Save it!
+                        }}
                         className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-widest transition-colors ${activeTab === tab ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
                             }`}
                     >
@@ -212,7 +217,10 @@ function TeamOverview({ team, allPlayers, onBack, onSelectPlayer, onSelectMatch 
 
 export function Teams() {
     const { setView: setLeagueView } = useLeague();
-    const [selectedTeam, setSelectedTeam] = useState(null);
+    const [selectedTeam, setSelectedTeam] = useState(() => {
+        const saved = sessionStorage.getItem('selectedTeam');
+        return saved ? JSON.parse(saved) : null;
+    });
     const [selectedPlayer, setSelectedPlayer] = useState(null);
 
     const { data: teamsResp, loading: teamsLoading, error: teamsError } = useApi('/teams');
@@ -260,7 +268,11 @@ export function Teams() {
             <TeamOverview
                 team={selectedTeam}
                 allPlayers={allPlayers}
-                onBack={() => setSelectedTeam(null)}
+                onBack={() => {
+                    setSelectedTeam(null);
+                    sessionStorage.removeItem('selectedTeam');
+                    sessionStorage.removeItem('activeTeamTab')
+                }}
                 onSelectPlayer={handleSelectPlayer}
                 onSelectMatch={handleSelectMatch}
             />
@@ -279,8 +291,11 @@ export function Teams() {
                     return (
                         <div
                             key={team.id}
-                            onClick={() => setSelectedTeam(team)}
-                            className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/5 bg-white/5 transition-all duration-300 hover:border-white/20 hover:scale-[1.02]"
+                            onClick={() => {
+                                setSelectedTeam(team);
+                                sessionStorage.setItem('selectedTeam', JSON.stringify(team));
+                            }}
+                            className="group relative cursor-pointer overflow-hidden rounded-2xl..."
                         >
                             <div
                                 className={`absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity duration-300 ${getTeamColorClass(team.name)}`}

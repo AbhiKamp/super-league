@@ -65,9 +65,9 @@ export default function PlayerProfile() {
     }, [setView]);
 
     const handleBack = () => {
-        sessionStorage.removeItem('selectedPlayer');
-        setView('teams');
-    };
+      sessionStorage.removeItem('selectedPlayer');
+      setView('teams'); // <-- Changed to 'squad'
+  };
 
     if (loading) {
         return (
