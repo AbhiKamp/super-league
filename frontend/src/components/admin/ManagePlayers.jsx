@@ -140,7 +140,7 @@ export default function ManagePlayers() {
     if (!confirm("Delete this player?")) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      await fetch(`/api/admin/players?id=${id}`, { 
+      await fetch(`${API_URL}/admin/players?id=${id}`, { 
         method: 'DELETE', credentials: 'include', headers: { 'Authorization': `Bearer ${session?.access_token}` }
       });
       refetchPlayers();

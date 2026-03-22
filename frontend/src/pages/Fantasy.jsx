@@ -45,6 +45,7 @@ export function Fantasy() {
     setHasPredicted(false);
   }, [division]);
 
+  // Include date and status for kickoff validation
   const upcomingMatches = useMemo(() =>
     (scheduleResp?.data || []).map(m => ({
       id: m.id,
@@ -52,11 +53,30 @@ export function Fantasy() {
       awayTeam: m.away_team || 'Team B',
       home_team_id: m.home_team_id,
       away_team_id: m.away_team_id,
+      date: m.date,
+      status: m.status
     })),
   [scheduleResp]);
 
   const allPlayers = playersResp?.data || [];
   const selectedMatch = upcomingMatches.find(m => m.id === selectedMatchId);
+
+  // NEW: Check if the match has already kicked off!
+  const isMatchStarted = useMemo(() => {
+    if (!selectedMatch) return false;
+    
+    // Fallback 1: Check backend status
+    if (selectedMatch.status === 'live' || selectedMatch.status === 'completed') return true;
+    
+    // Fallback 2: Check the actual timestamp
+    if (selectedMatch.date) {
+      const kickoffTime = new Date(selectedMatch.date).getTime();
+      const currentTime = new Date().getTime();
+      return currentTime >= kickoffTime;
+    }
+    
+    return false;
+  }, [selectedMatch]);
 
   // MAGIC FIX: Check if they already predicted when they select a match!
   useEffect(() => {
@@ -126,6 +146,7 @@ export function Fantasy() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedMatch || homeScore === '' || awayScore === '') return;
+    if (isMatchStarted) return; // Extra safety block
 
     setSubmitting(true);
     setSubmitError(null);
@@ -267,9 +288,17 @@ export function Fantasy() {
             <div className="animate-in fade-in zoom-in-95 duration-300 space-y-10">
               <hr className="border-white/5" />
 
-              {/* CHECK IF ALREADY PREDICTED */}
+              {/* CHECK IF MATCH ALREADY STARTED OR ALREADY PREDICTED */}
               {checkingStatus ? (
                 <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-zinc-500" /></div>
+              ) : isMatchStarted ? (
+                <div className="text-center py-12 bg-black/40 rounded-2xl border border-white/5 animate-in zoom-in-95 duration-500">
+                  <Lock className="w-12 h-12 text-red-500/80 mx-auto mb-4" />
+                  <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2">Match Started</h3>
+                  <p className="text-zinc-400 text-sm max-w-md mx-auto">
+                    Kickoff has already happened! Predictions for this match are now locked. Good luck to those who got them in!
+                  </p>
+                </div>
               ) : hasPredicted ? (
                 <div className="text-center py-12 bg-black/40 rounded-2xl border border-white/5 animate-in zoom-in-95 duration-500">
                   <Lock className="w-12 h-12 text-zinc-500 mx-auto mb-4" />
