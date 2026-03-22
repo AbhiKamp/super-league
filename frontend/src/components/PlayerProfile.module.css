@@ -1,3 +1,87 @@
+.mainLayout {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "card"
+        "header"
+        "attrs"
+        "styles";
+    gap: 2rem;
+    max-width: 80rem;
+    margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+    .mainLayout {
+        grid-template-columns: 260px minmax(0, 1fr);
+        grid-template-areas:
+            "card header"
+            "attrs attrs"
+            "styles styles";
+        column-gap: 3rem;
+        row-gap: 2.5rem;
+        align-items: center;
+    }
+
+    .attrsArea,
+    .stylesArea {
+        align-self: start;
+    }
+}
+
+@media (min-width: 1024px) {
+    .mainLayout {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "card header"
+            "attrs styles";
+        align-items: start;
+    }
+
+    .cardArea {
+        justify-self: center;
+    }
+
+    .headerArea {
+        align-self: center;
+    }
+}
+
+.cardArea {
+    grid-area: card;
+    display: grid;
+    justify-items: center;
+}
+
+.headerArea {
+    grid-area: header;
+    display: grid;
+    grid-template-columns: 1fr max-content;
+    gap: 1rem;
+    align-items: center;
+}
+
+@media (min-width: 768px) {
+    .headerArea {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        justify-items: start;
+    }
+}
+
+.attrsArea {
+    grid-area: attrs;
+    display: grid;
+    align-content: start;
+}
+
+.stylesArea {
+    grid-area: styles;
+    display: grid;
+    gap: 1rem;
+    align-content: start;
+}
+
 .cardStatsGrid {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -5,18 +89,31 @@
 
 .bioGrid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: 1.5rem;
+    grid-template-columns: max-content max-content;
+    column-gap: 2rem;
+    align-items: center;
 }
 
 .coreAttributesGrid {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
-    column-gap: 3rem;
-    row-gap: 1.5rem;
+    row-gap: 1.25rem;
 }
 
 @media (min-width: 768px) {
+    .coreAttributesGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 3rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .coreAttributesGrid {
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
     .coreAttributesGrid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }

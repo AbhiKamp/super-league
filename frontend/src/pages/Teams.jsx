@@ -8,6 +8,10 @@ const POSITION_ORDER = ['GK', 'DEF', 'MID', 'FWD'];
 const POSITION_LABELS = { GK: 'Goalkeepers', DEF: 'Defenders', MID: 'Midfielders', FWD: 'Forwards' };
 
 const getTeamColorClass = (teamName) => {
+    if (!teamName) return styles.defaultTeam;
+
+    const cleanName = teamName.trim();
+
     const map = {
         'KFC': styles.kfc,
         'HRZxKadayadis': styles.hrzx,
@@ -21,16 +25,16 @@ const getTeamColorClass = (teamName) => {
         'KULASTHREE FC': styles.kulasthree,
         'Fivestars': styles.fivestars
     };
-    return map[teamName] || styles.defaultTeam;
+    return map[cleanName] || styles.defaultTeam;
 };
 
-function PlayerRow({ player, onSelect }) {
+function PlayerRow({ player, teamColor, onSelect }) {
     return (
         <div
             onClick={() => onSelect(player)}
             className="flex items-center gap-4 py-3 px-2 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors group rounded-lg"
         >
-            <div className="w-12 h-12 rounded-lg overflow-hidden bg-zinc-800 shrink-0 border border-white/10">
+            <div className={`w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10 ${teamColor}`}>
                 {player.image_url ? (
                     <img src={player.image_url} alt={player.name} className="w-full h-full object-cover" />
                 ) : (
@@ -105,6 +109,8 @@ function TeamOverview({ team, allPlayers, onBack, onSelectPlayer, onSelectMatch 
     const { data: matchesResp, loading: matchesLoading } = useApi(`/teams/${team.id}/matches`);
     const matches = matchesResp?.data || [];
 
+    const teamColorClass = getTeamColorClass(team.name);
+
     const teamPlayers = useMemo(
         () => allPlayers.filter(p => p.team_id === team.id),
         [allPlayers, team.id]
@@ -168,7 +174,7 @@ function TeamOverview({ team, allPlayers, onBack, onSelectPlayer, onSelectMatch 
                                 </h3>
                                 <div>
                                     {players.map(player => (
-                                        <PlayerRow key={player.id} player={player} onSelect={onSelectPlayer} />
+                                        <PlayerRow key={player.id} player={player} teamColor={teamColorClass} onSelect={onSelectPlayer} />
                                     ))}
                                 </div>
                             </div>
@@ -277,7 +283,7 @@ export function Teams() {
                             className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/5 bg-white/5 transition-all duration-300 hover:border-white/20 hover:scale-[1.02]"
                         >
                             <div
-                                className={`absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-300 ${getTeamColorClass(team.name)}`}
+                                className={`absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity duration-300 ${getTeamColorClass(team.name)}`}
                             />
                             <div className="relative p-8 flex flex-col items-center justify-center text-center gap-3 h-52">
                                 {team.logo_url ? (
