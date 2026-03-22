@@ -120,61 +120,71 @@ export default function PlayerProfile() {
 
             <div className={styles.mainLayout}>
                 <div className={styles.cardArea}>
-                    <div
-                        className="relative w-[260px] h-[380px] bg-center bg-no-repeat select-none drop-shadow-2xl overflow-hidden"
-                        style={{
-                            backgroundImage: cardBgImage,
-                            backgroundSize: '100% 100%'
-                        }}
-                    >
-                        <div className={`absolute top-[22%] left-[16%] flex flex-col items-start z-10 ${cardTextColor}`}>
-                            <span className="text-4xl font-black leading-none tabular-nums">
-                                {player.overall_rating || 50}
-                            </span>
-                            <span className="text-sm font-bold uppercase tracking-wider">
-                                {player.position || 'RES'}
-                            </span>
-                        </div>
+                    <div className="relative w-max drop-shadow-2xl">
+                        <div
+                            className="relative w-[260px] h-[380px] bg-center bg-no-repeat select-none overflow-hidden z-10"
+                            style={{
+                                backgroundImage: cardBgImage,
+                                backgroundSize: '100% 100%'
+                            }}
+                        >
+                            <div className={`absolute top-[22%] left-[16%] flex flex-col items-start z-10 ${cardTextColor}`}>
+                                <span className="text-4xl font-black leading-none tabular-nums">
+                                    {player.overall_rating || 50}
+                                </span>
+                                <span className="text-sm font-bold uppercase tracking-wider">
+                                    {player.position || 'RES'}
+                                </span>
+                            </div>
 
-                        <div className="absolute top-[29%] left-0 w-full flex justify-center">
-                            {player.image_url ? (
-                                <img
-                                    src={player.image_url}
-                                    alt={player.name}
-                                    className="h-[130px] object-contain drop-shadow-2xl"
-                                />
-                            ) : (
-                                <Shield className={`h-[130px] w-auto opacity-40 ${cardTextColor}`} />
-                            )}
-                        </div>
+                            <div className="absolute top-[18%] left-0 w-full flex justify-center">
+                                {player.image_url ? (
+                                    <img
+                                        src={player.image_url}
+                                        alt={player.name}
+                                        className="h-[175px] object-contain drop-shadow-2xl"
+                                    />
+                                ) : (
+                                    <Shield className={`h-[175px] w-auto opacity-40 ${cardTextColor}`} />
+                                )}
+                            </div>
 
-                        <div className={`absolute bottom-[28%] left-0 w-full text-center ${cardTextColor}`}>
-                            <div className="font-black text-[14px] uppercase tracking-widest">
-                                {player.first_name || player.last_name}
+                            <div className={`absolute bottom-[28%] left-0 w-full text-center ${cardTextColor}`}>
+                                <div className="font-black text-[14px] uppercase tracking-widest">
+                                    {player.first_name || player.last_name}
+                                </div>
+                            </div>
+
+                            <div className={`absolute bottom-[19%] left-0 w-full px-6 ${cardTextColor}`}>
+                                <div className={`text-center ${styles.cardStatsGrid}`}>
+                                    {[
+                                        { label: 'PAC', value: stats.Pace?.total },
+                                        { label: 'SHO', value: stats.Shooting?.total },
+                                        { label: 'PAS', value: stats.Passing?.total },
+                                        { label: 'DRI', value: stats.Dribbling?.total },
+                                        { label: 'DEF', value: stats.Defending?.total },
+                                        { label: 'PHY', value: stats.Physicality?.total },
+                                    ].map((stat) => (
+                                        <div key={stat.label} className="grid grid-rows-2 justify-items-center">
+                                            <span className="text-[9px] font-bold opacity-80">
+                                                {stat.label}
+                                            </span>
+                                            <span className="text-[15px] font-black leading-none">
+                                                {stat.value || 0}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
-                        <div className={`absolute bottom-[19%] left-0 w-full px-6 ${cardTextColor}`}>
-                            <div className={`text-center ${styles.cardStatsGrid}`}>
-                                {[
-                                    { label: 'PAC', value: stats.Pace?.total },
-                                    { label: 'SHO', value: stats.Shooting?.total },
-                                    { label: 'PAS', value: stats.Passing?.total },
-                                    { label: 'DRI', value: stats.Dribbling?.total },
-                                    { label: 'DEF', value: stats.Defending?.total },
-                                    { label: 'PHY', value: stats.Physicality?.total },
-                                ].map((stat) => (
-                                    <div key={stat.label} className="grid grid-rows-2 justify-items-center">
-                                        <span className="text-[9px] font-bold opacity-80">
-                                            {stat.label}
-                                        </span>
-                                        <span className="text-[15px] font-black leading-none">
-                                            {stat.value || 0}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        {stylesArr.length > 0 && stylesArr[0].icon_url && (
+                            <img
+                                src={stylesArr[0].icon_url}
+                                alt={stylesArr[0].name}
+                                className="absolute top-[48%] left-[26px] -translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 object-contain"
+                            />
+                        )}
                     </div>
                 </div>
 
