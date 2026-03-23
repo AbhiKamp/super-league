@@ -4,18 +4,12 @@ import { UserPlus, Trash2, Copy, Check, UploadCloud } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
+// 1. MASSIVELY SIMPLIFIED STATE: Only the exact fields the Profile Card uses!
 const initialFormState = { 
-  first_name: '', last_name: '', team_id: '', position: '', alt_positions: '', jersey_number: '', overall_rating: 50, 
+  first_name: '', last_name: '', team_id: '', position: '', jersey_number: '', overall_rating: 50, 
+  preferredFoot: 'Right',
   play_style_name: '', play_style_desc: '',
-  bio: { height: '', weight: '', preferredFoot: 'Right', weakFoot: 3, skillMoves: 3 },
-  stats: { 
-    pace: { total: 50, acceleration: 50, sprintSpeed: 50 },
-    shooting: { total: 50, finishing: 50, shotPower: 50, positioning: 50 },
-    passing: { total: 50, vision: 50, crossing: 50, shortPass: 50 },
-    dribbling: { total: 50, agility: 50, balance: 50, ballControl: 50 },
-    defending: { total: 50, standTackle: 50, interceptions: 50 },
-    physicality: { total: 50, jumping: 50, stamina: 50, strength: 50 }
-  }
+  stats: { pace: 50, shooting: 50, passing: 50, dribbling: 50, defending: 50, physicality: 50 }
 };
 
 export default function ManagePlayers() {
@@ -29,7 +23,7 @@ export default function ManagePlayers() {
   const [copiedId, setCopiedId] = useState(null);
   const [activeFormTab, setActiveFormTab] = useState('basic');
   const [imageFile, setImageFile] = useState(null);
-  const [playStyleImageFile, setPlayStyleImageFile] = useState(null); // NEW: Image state for PlayStyle
+  const [playStyleImageFile, setPlayStyleImageFile] = useState(null);
   const [form, setForm] = useState(initialFormState);
 
   const handleCopy = (id) => {
@@ -38,13 +32,10 @@ export default function ManagePlayers() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleStatChange = (category, field, value) => {
+  const handleStatChange = (category, value) => {
     setForm(prev => ({
       ...prev,
-      stats: {
-        ...prev.stats,
-        [category]: { ...prev.stats[category], [field]: parseInt(value) || 0 }
-      }
+      stats: { ...prev.stats, [category]: parseInt(value) || 0 }
     }));
   };
 
@@ -56,7 +47,6 @@ export default function ManagePlayers() {
       let finalImageUrl = null;
       let finalPlayStyleUrl = null;
 
-      // Upload main player image
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
@@ -66,7 +56,6 @@ export default function ManagePlayers() {
         finalImageUrl = publicUrl;
       }
 
-      // NEW: Upload PlayStyle Icon
       if (playStyleImageFile) {
         const fileExt = playStyleImageFile.name.split('.').pop();
         const fileName = `ps_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
@@ -76,7 +65,6 @@ export default function ManagePlayers() {
         finalPlayStyleUrl = publicUrl;
       }
 
-      // Convert PlayStyle Data into array
       const playStylesArray = [];
       if (form.play_style_name) {
         playStylesArray.push({
@@ -86,8 +74,7 @@ export default function ManagePlayers() {
         });
       }
 
-      const altPositionsArray = form.alt_positions.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-
+      // 2. SIMPLIFIED PAYLOAD: Sends only exactly what is needed
       const payload = {
         first_name: form.first_name,
         last_name: form.last_name,
@@ -97,15 +84,15 @@ export default function ManagePlayers() {
         image_url: finalImageUrl, 
         overall_rating: parseInt(form.overall_rating) || 50,
         attributes: {
-          bio: { ...form.bio, altPositions: altPositionsArray },
+          bio: { preferredFoot: form.preferredFoot },
           playStyles: playStylesArray,
           stats: {
-            Pace: { total: form.stats.pace.total, subs: { Acceleration: form.stats.pace.acceleration, "Sprint Speed": form.stats.pace.sprintSpeed } },
-            Shooting: { total: form.stats.shooting.total, subs: { Finishing: form.stats.shooting.finishing, "Shot Power": form.stats.shooting.shotPower, Positioning: form.stats.shooting.positioning } },
-            Passing: { total: form.stats.passing.total, subs: { Vision: form.stats.passing.vision, Crossing: form.stats.passing.crossing, "Short Pass": form.stats.passing.shortPass } },
-            Dribbling: { total: form.stats.dribbling.total, subs: { Agility: form.stats.dribbling.agility, Balance: form.stats.dribbling.balance, "Ball Control": form.stats.dribbling.ballControl } },
-            Defending: { total: form.stats.defending.total, subs: { Interceptions: form.stats.defending.interceptions, "Stand Tackle": form.stats.defending.standTackle } },
-            Physicality: { total: form.stats.physicality.total, subs: { Jumping: form.stats.physicality.jumping, Stamina: form.stats.physicality.stamina, Strength: form.stats.physicality.strength } }
+            Pace: { total: form.stats.pace },
+            Shooting: { total: form.stats.shooting },
+            Passing: { total: form.stats.passing },
+            Dribbling: { total: form.stats.dribbling },
+            Defending: { total: form.stats.defending },
+            Physicality: { total: form.stats.physicality }
           }
         }
       };
@@ -121,7 +108,7 @@ export default function ManagePlayers() {
         alert("Player added to Database!");
         refetchPlayers();
         setImageFile(null);
-        setPlayStyleImageFile(null); // Reset PS image
+        setPlayStyleImageFile(null);
         setForm(initialFormState);
         setActiveFormTab('basic');
       } else {
@@ -129,7 +116,7 @@ export default function ManagePlayers() {
         alert(`Error: ${errData.message}`);
       }
     } catch (err) {
-      alert("Failed to add player. Check console for details.");
+      alert("Failed to add player.");
       console.error(err);
     } finally {
       setLoading(false);
@@ -149,14 +136,7 @@ export default function ManagePlayers() {
     }
   };
 
-  const statGroups = [
-    { id: 'pace', title: 'Pace', subs: [{ id: 'acceleration', label: 'Acceleration' }, { id: 'sprintSpeed', label: 'Sprint Speed' }] },
-    { id: 'shooting', title: 'Shooting', subs: [{ id: 'finishing', label: 'Finishing' }, { id: 'shotPower', label: 'Shot Power' }, { id: 'positioning', label: 'Positioning' }] },
-    { id: 'passing', title: 'Passing', subs: [{ id: 'vision', label: 'Vision' }, { id: 'crossing', label: 'Crossing' }, { id: 'shortPass', label: 'Short Pass' }] },
-    { id: 'dribbling', title: 'Dribbling', subs: [{ id: 'agility', label: 'Agility' }, { id: 'balance', label: 'Balance' }, { id: 'ballControl', label: 'Ball Control' }] },
-    { id: 'defending', title: 'Defending', subs: [{ id: 'standTackle', label: 'Stand Tackle' }, { id: 'interceptions', label: 'Interceptions' }] },
-    { id: 'physicality', title: 'Physicality', subs: [{ id: 'jumping', label: 'Jumping' }, { id: 'stamina', label: 'Stamina' }, { id: 'strength', label: 'Strength' }] }
-  ];
+  const statKeys = ['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physicality'];
 
   return (
     <div className="p-6 space-y-8 animate-in fade-in duration-500">
@@ -195,45 +175,19 @@ export default function ManagePlayers() {
             </div>
           )}
 
-          {/* TAB 2: BIO & PLAYSTYLES */}
+          {/* TAB 2: BIO & PLAYSTYLES (Simplified) */}
           {activeFormTab === 'bio' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-left-4">
-              {/* LEFT: Bio */}
               <div className="space-y-4">
-                <h4 className="text-xs font-black uppercase tracking-widest text-zinc-500 border-b border-white/10 pb-2">Physical Bio</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Height</label>
-                    <input type="text" placeholder="e.g. 182cm / 6'0''" value={form.bio.height} onChange={e => setForm({...form, bio: {...form.bio, height: e.target.value}})} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#E8C881]/50" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Weight</label>
-                    <input type="text" placeholder="e.g. 76kg" value={form.bio.weight} onChange={e => setForm({...form, bio: {...form.bio, weight: e.target.value}})} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#E8C881]/50" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Preferred Foot</label>
-                    <select value={form.bio.preferredFoot} onChange={e => setForm({...form, bio: {...form.bio, preferredFoot: e.target.value}})} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#E8C881]/50 appearance-none">
-                      <option value="Right">Right</option><option value="Left">Left</option><option value="Both">Both</option>
-                    </select>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="w-1/2">
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Weak Foot</label>
-                      <input type="number" min="1" max="5" value={form.bio.weakFoot} onChange={e => setForm({...form, bio: {...form.bio, weakFoot: parseInt(e.target.value)}})} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#E8C881]/50 text-center" />
-                    </div>
-                    <div className="w-1/2">
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Skill Moves</label>
-                      <input type="number" min="1" max="5" value={form.bio.skillMoves} onChange={e => setForm({...form, bio: {...form.bio, skillMoves: parseInt(e.target.value)}})} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#E8C881]/50 text-center" />
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Alt Positions (Comma Separated)</label>
-                  <input type="text" placeholder="e.g. LW, CF" value={form.alt_positions} onChange={e => setForm({...form, alt_positions: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#E8C881]/50" />
+                <h4 className="text-xs font-black uppercase tracking-widest text-zinc-500 border-b border-white/10 pb-2">Basic Bio</h4>
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Preferred Foot</label>
+                  <select value={form.preferredFoot} onChange={e => setForm({...form, preferredFoot: e.target.value})} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#E8C881]/50 appearance-none">
+                    <option value="Right">Right</option><option value="Left">Left</option><option value="Both">Both</option>
+                  </select>
                 </div>
               </div>
 
-              {/* RIGHT: Signature PlayStyle (NEW UI) */}
               <div className="space-y-4">
                 <h4 className="text-xs font-black uppercase tracking-widest text-[#E8C881] border-b border-[#E8C881]/20 pb-2">Signature PlayStyle (Optional)</h4>
                 <div>
@@ -255,23 +209,13 @@ export default function ManagePlayers() {
             </div>
           )}
 
-          {/* TAB 3: IN-DEPTH ATTRIBUTES */}
+          {/* TAB 3: ATTRIBUTES (Simplified to just the 6 main stats) */}
           {activeFormTab === 'stats' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 animate-in slide-in-from-left-4">
-              {statGroups.map(group => (
-                <div key={group.id} className="bg-black/50 border border-white/10 rounded-xl p-4">
-                  <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
-                    <h4 className="font-black uppercase tracking-widest text-[#E8C881] text-sm">{group.title}</h4>
-                    <input type="number" min="1" max="99" value={form.stats[group.id].total} onChange={e => handleStatChange(group.id, 'total', e.target.value)} className="w-12 bg-transparent text-right font-black text-xl outline-none" />
-                  </div>
-                  <div className="space-y-3">
-                    {group.subs.map(sub => (
-                      <div key={sub.id} className="flex justify-between items-center text-xs">
-                        <span className="text-zinc-400 font-bold">{sub.label}</span>
-                        <input type="number" min="1" max="99" value={form.stats[group.id][sub.id]} onChange={e => handleStatChange(group.id, sub.id, e.target.value)} className="w-10 bg-white/5 border border-white/10 rounded px-1 py-1 text-center outline-none focus:border-[#E8C881]" />
-                      </div>
-                    ))}
-                  </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 animate-in slide-in-from-left-4">
+              {statKeys.map(key => (
+                <div key={key} className="bg-black/50 border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                  <h4 className="font-black uppercase tracking-widest text-[#E8C881] text-sm">{key}</h4>
+                  <input type="number" min="1" max="99" value={form.stats[key]} onChange={e => handleStatChange(key, e.target.value)} className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-center font-black text-xl outline-none focus:border-[#E8C881]" />
                 </div>
               ))}
             </div>

@@ -1,17 +1,74 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLeague } from '../context/LeagueContext';
-import { ArrowLeft, Calendar, Newspaper } from 'lucide-react';
+import { ArrowLeft, Calendar, Newspaper, Share2, Check, Loader2 } from 'lucide-react';
+
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export function ArticleView() {
-  const { selectedArticle, setView } = useLeague();
+  const { selectedArticle, setSelectedArticle, setView } = useLeague();
+  const [copied, setCopied] = useState(false);
 
-  if (!selectedArticle) {
-    // Failsafe in case of direct render without selection
+  // 1. FIX: Automatically set loading to TRUE if we only have an ID
+  const needsFetch = !!(selectedArticle?.id && !selectedArticle?.title && !selectedArticle?.headline);
+  const [loading, setLoading] = useState(needsFetch);
+
+  // 2. FETCH FULL DATA IF SHARED VIA LINK
+  // 2. FETCH FULL DATA IF SHARED VIA LINK
+  useEffect(() => {
+    if (needsFetch) {
+      setLoading(true);
+      
+      // FIX: Fetch all news and quickly filter for the correct ID to avoid the 404!
+      fetch(`${API_URL}/news`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.data) {
+            // Find the exact article from the master list
+            const foundArticle = data.data.find(a => a.id === selectedArticle.id);
+            
+            if (foundArticle) {
+              setSelectedArticle(foundArticle);
+            } else {
+              setSelectedArticle(null); // Clear if ID genuinely doesn't exist
+            }
+          } else {
+            setSelectedArticle(null);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load shared article", err);
+          setSelectedArticle(null);
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [selectedArticle?.id, needsFetch, setSelectedArticle]);
+  
+  // 3. SHARE HANDLER
+  const handleShare = () => {
+    if (!selectedArticle?.id) return;
+    const shareLink = `${window.location.origin}/?article=${selectedArticle.id}`;
+    navigator.clipboard.writeText(shareLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // 4. SHOW LOADER WHILE FETCHING
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 text-zinc-500 animate-pulse">
+        <Loader2 className="w-10 h-10 animate-spin mb-4" />
+        <span className="text-xs font-black tracking-widest uppercase">Loading Article...</span>
+      </div>
+    );
+  }
+
+  // 5. FIXED FAILSAFE: Only kick them out if we finished loading and STILL have no title
+  if (!selectedArticle || (!selectedArticle.title && !selectedArticle.headline)) {
     setView('vault');
     return null;
   }
 
-  // 1. SAFELY EXTRACT FIELDS (Handles both OLD dummy data and NEW database data)
+  // SAFELY EXTRACT FIELDS
   const title = selectedArticle.title || selectedArticle.headline || 'Untitled Article';
   const summary = selectedArticle.summary || selectedArticle.snippet || '';
   const imageUrl = selectedArticle.image_url || selectedArticle.imgUrl;
@@ -23,13 +80,27 @@ export function ArticleView() {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       
       {/* Top Navigation */}
-      <button 
-        onClick={() => setView('vault')}
-        className="group flex items-center gap-2 text-zinc-400 hover:text-white transition-colors mb-6"
-      >
-        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-        <span className="text-xs font-bold uppercase tracking-widest">Back to Newsletter</span>
-      </button>
+      <div className="flex items-center justify-between mb-6">
+        <button 
+          onClick={() => {
+            setSelectedArticle(null); // Safely clear memory before going back!
+            setView('vault');
+          }}
+          className="group flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
+        >
+          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs font-bold uppercase tracking-widest">Back to Newsletter</span>
+        </button>
+
+        <button 
+          onClick={handleShare}
+          className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-[10px] sm:text-xs font-bold uppercase tracking-widest text-white border border-white/5"
+        >
+          {copied ? <Check size={14} className="text-green-400" /> : <Share2 size={14} />}
+          <span className="hidden sm:inline">{copied ? 'Link Copied!' : 'Share Article'}</span>
+          <span className="sm:hidden">{copied ? 'Copied!' : 'Share'}</span>
+        </button>
+      </div>
 
       {/* Hero Header */}
       {imageUrl ? (
