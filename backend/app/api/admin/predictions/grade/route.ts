@@ -3,6 +3,21 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { handleError } from '../../../../../lib/errorHandler';
 
+// 1. THE MAGIC FIX: Helper to read the Auth Header from the frontend!
+async function getSupabaseClient(request: Request) {
+  const cookieStore = await cookies();
+  const authHeader = request.headers.get('Authorization'); 
+
+  return createServerClient(process.env.SUPABASE_URL as string, process.env.SUPABASE_ANON_KEY as string, {
+    cookies: { getAll() { return cookieStore.getAll() }, setAll() {} },
+    global: {
+      headers: {
+        Authorization: authHeader || '', 
+      },
+    },
+  });
+}
+
 // --- THE FREQUENCY ALGORITHM ---
 function getFrequencyMap(arr: string[] | null) {
   const map: Record<string, number> = {};
@@ -31,10 +46,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     if (!body.match_id) throw { status: 400, message: "match_id is required for grading." };
 
-    const cookieStore = await cookies();
-    const supabase = createServerClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
-      cookies: { getAll() { return cookieStore.getAll() }, setAll() {} },
-    });
+    // 2. USE THE HELPER HERE
+    const supabase = await getSupabaseClient(request);
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw { status: 401, message: "Unauthorized" };
@@ -103,7 +116,6 @@ export async function POST(request: Request) {
     await Promise.all(gradePromises);
 
     // --- 5. AUTOMATIC GLOBAL LEADERBOARD UPDATE ---
-    // Recalculate the total score for every user who predicted in this match
     const uniqueUsers = [...new Set(predictions.map(p => p.user_id))];
     
     const profilePromises = uniqueUsers.map(async (userId) => {
