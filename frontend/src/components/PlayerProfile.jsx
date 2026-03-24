@@ -26,6 +26,14 @@ const getCardTextColor = (rating) => {
     return "text-orange-950";
 };
 
+// THE MAGIC MULTIPLIER FUNCTION
+const getAdjustedStat = (val, isMens) => {
+    const num = parseInt(val) || 0;
+    if (!isMens || num === 0) return num;
+    // Multiplies by 1.12, rounds down, and caps at 99 max
+    return Math.min(99, Math.floor(num * 1.12)); 
+};
+
 const defaultAttributes = {
     bio: { preferredFoot: "Right" },
     stats: {
@@ -40,12 +48,15 @@ const defaultAttributes = {
 };
 
 export default function PlayerProfile() {
-    const { setView } = useLeague();
+    // 1. PULL DIVISION FROM CONTEXT
+    const { setView, division } = useLeague();
     const [player, setPlayer] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
+    const isMens = division === 'mens'; // Check if we should apply the buff
+
+useEffect(() => {
         const raw = sessionStorage.getItem('selectedPlayer');
         if (!raw) {
             setView('teams');
@@ -54,10 +65,23 @@ export default function PlayerProfile() {
 
         const base = JSON.parse(raw);
 
+        // 1. THE FIX: Check if we already fetched this player's deep data recently
+        const cachedProfile = sessionStorage.getItem(`player_profile_${base.id}`);
+        if (cachedProfile) {
+            setPlayer(JSON.parse(cachedProfile));
+            setLoading(false);
+            return; // Exit early! No API call needed.
+        }
+
+        // 2. If not cached, fetch it from the API
         fetch(`${API_BASE_URL}/players/${base.id}`)
             .then(r => r.json())
             .then(res => {
-                if (res.success) setPlayer(res.data);
+                if (res.success) {
+                    setPlayer(res.data);
+                    // 3. Save the successful result to memory so we never have to fetch it again this session!
+                    sessionStorage.setItem(`player_profile_${base.id}`, JSON.stringify(res.data));
+                }
                 else setError('Failed to load player.');
             })
             .catch(() => setError('Failed to load player.'))
@@ -66,7 +90,7 @@ export default function PlayerProfile() {
 
     const handleBack = () => {
       sessionStorage.removeItem('selectedPlayer');
-      setView('teams'); // <-- Changed to 'squad'
+      setView('teams'); 
   };
 
     if (loading) {
@@ -102,8 +126,12 @@ export default function PlayerProfile() {
     const bio = attrs.bio || defaultAttributes.bio;
     const stylesArr = attrs.playStyles || [];
 
-    const cardBgImage = getCardBackground(player.overall_rating);
-    const cardTextColor = getCardTextColor(player.overall_rating);
+    // 2. APPLY MULTIPLIER TO OVERALL RATING
+    const displayRating = getAdjustedStat(player.overall_rating || 50, isMens);
+    
+    // Pass the calculated displayRating to ensure the card color upgrades if they cross a threshold!
+    const cardBgImage = getCardBackground(displayRating);
+    const cardTextColor = getCardTextColor(displayRating);
 
     return (
         <div className="w-full bg-[#0F0E13] min-h-screen text-white p-4 md:p-8 font-sans pb-20 animate-in fade-in duration-300">
@@ -130,7 +158,8 @@ export default function PlayerProfile() {
                         >
                             <div className={`absolute top-[22%] left-[16%] flex flex-col items-start z-10 ${cardTextColor}`}>
                                 <span className="text-4xl font-black leading-none tabular-nums">
-                                    {player.overall_rating || 50}
+                                    {/* Display the buffed overall rating */}
+                                    {displayRating}
                                 </span>
                                 <span className="text-sm font-bold uppercase tracking-wider">
                                     {player.position || 'RES'}
@@ -164,16 +193,20 @@ export default function PlayerProfile() {
                                         { label: 'DRI', value: stats.Dribbling?.total },
                                         { label: 'DEF', value: stats.Defending?.total },
                                         { label: 'PHY', value: stats.Physicality?.total },
-                                    ].map((stat) => (
-                                        <div key={stat.label} className="grid grid-rows-2 justify-items-center">
-                                            <span className="text-[9px] font-bold opacity-80">
-                                                {stat.label}
-                                            </span>
-                                            <span className="text-[15px] font-black leading-none">
-                                                {stat.value || 0}
-                                            </span>
-                                        </div>
-                                    ))}
+                                    ].map((stat) => {
+                                        // 3. APPLY MULTIPLIER TO EACH INDIVIDUAL CARD STAT
+                                        const finalVal = getAdjustedStat(stat.value, isMens);
+                                        return (
+                                            <div key={stat.label} className="grid grid-rows-2 justify-items-center">
+                                                <span className="text-[9px] font-bold opacity-80">
+                                                    {stat.label}
+                                                </span>
+                                                <span className="text-[15px] font-black leading-none">
+                                                    {finalVal}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -220,7 +253,9 @@ export default function PlayerProfile() {
 
                         <div className={styles.coreAttributesGrid}>
                             {['Pace', 'Shooting', 'Passing', 'Dribbling', 'Defending', 'Physicality'].map(category => {
-                                const val = stats[category]?.total || 0;
+                                // 4. APPLY MULTIPLIER TO PROGRESS BARS
+                                const rawVal = stats[category]?.total || 0;
+                                const val = getAdjustedStat(rawVal, isMens);
 
                                 return (
                                     <div key={category} className="grid gap-2 text-sm">
