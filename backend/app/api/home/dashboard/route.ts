@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     // --- 3. FETCH ALL TEAMS AND ALL MATCHES TO CALCULATE REAL FORM & STANDINGS ---
     const { data: teams } = await supabase
       .from('teams')
-      .select('id, name')
+      .select('id, name, logo_url')
       .eq('division', division);
 
     const { data: allMatches } = await supabase
@@ -52,6 +52,7 @@ export async function GET(request: Request) {
       scoreboard[team.id] = {
         teamId: team.id,
         teamName: team.name,
+        logoUrl: team.logo_url,
         stats: { points: 0, goalDifference: 0, goalsFor: 0 },
         form: [] // We will store 'W', 'D', 'L' here
       };

@@ -51,13 +51,10 @@ export function TopNavbar() {
               </span>
             </>
           ) : (
-            <>
-              <img src="/slklogo3.png" alt="SLK" className="w-14 h-14 sm:w-20 sm:h-20 object-contain relative -ml-2" />
-              <span className="text-xl sm:text-2xl font-black italic tracking-tighter text-white">
-                <span className="hidden lg:inline">SUPER LEAGUE</span>
-                <span className="lg:hidden">SLK</span>
-              </span>
-            </>
+            <span className="text-lg sm:text-xl font-black italic tracking-tighter text-white leading-none flex flex-col justify-center">
+              <span>SUPER</span>
+              <span>LEAGUE</span>
+            </span>
           )}
           </div>
         </div>

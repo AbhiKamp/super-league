@@ -11,7 +11,7 @@ import { Loader } from '../components/Loader';
 
 export function Fantasy() {
   const { division } = useLeague();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   // --- Data fetching ---
   const { data: scheduleResp, loading: scheduleLoading } = useApi('/schedule');
@@ -206,6 +206,9 @@ export function Fantasy() {
   };
 
   const leaderboard = lbResp?.data?.overall || [];
+  const myEntry = leaderboard.find(entry => entry.user_id === user?.id);
+  const myPoints = myEntry ? myEntry.total_points : 0;
+  const myName = profile?.nickname || user?.user_metadata?.full_name || user?.user_metadata?.name || 'Player';
 
   if (scheduleLoading) {
     return <Loader text="Loading Predictor Engine..." />;
@@ -226,6 +229,29 @@ export function Fantasy() {
         <p className="text-zinc-400 max-w-xl mx-auto text-lg">
           Predict match outcomes to climb the global leaderboard.
         </p>
+
+        {/* User Stats Banner */}
+        {user && !lbLoading && (
+          <div className="bg-white/10 border border-white/20 rounded-2xl p-4 sm:p-6 flex items-center justify-between max-w-2xl mx-auto mt-6 shadow-xl backdrop-blur-md transition-all hover:bg-white/15">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white text-black flex items-center justify-center font-black text-2xl flex-shrink-0">
+                {myName.charAt(0).toUpperCase()}
+              </div>
+              <div className="text-left">
+                <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest leading-none mb-1.5 pt-1">Player</p>
+                <p className="text-xl sm:text-2xl font-black text-white leading-none">{myName}</p>
+              </div>
+            </div>
+            <div className="text-right flex flex-col items-end justify-center">
+              <div className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400 leading-none mb-1.5 pt-1">
+                {myPoints.toLocaleString()}
+              </div>
+              <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-widest leading-none">
+                PTS
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Scoring rules */}
 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-8 text-left mx-auto max-w-2xl mt-4">
@@ -471,7 +497,7 @@ export function Fantasy() {
                       {index + 1}
                     </div>
                     <span className="font-bold text-white text-lg">
-                      {entry.username}
+                      {isMe ? myName : entry.username}
                       {isMe && <span className="ml-2 text-[10px] bg-white text-black px-2 py-0.5 rounded-full uppercase tracking-widest font-black">You</span>}
                     </span>
                   </div>

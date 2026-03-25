@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 const LeagueContext = createContext(undefined);
 
 export function LeagueProvider({ children }) {
-  const [division, setDivision] = useState('womens'); // 'mens' | 'womens'
+  const [division, setDivision] = useState('mens'); // 'mens' | 'womens'
   
   // ADDED 'matchTimeline' and 'player-profile' to your tracker comment!
   const [view, setViewInternal] = useState(() => {
