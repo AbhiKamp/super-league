@@ -14,9 +14,9 @@ export function TopNavbar() {
         { id: 'matches', label: 'Matches' },
         { id: 'standings', label: 'Standings' },
         { id: 'teams', label: 'Clubs' },
-        { id: 'fantasy', label: 'Fantasy Game' },
-        { id: 'leaderboard', label: 'Leaderboard' },
-        { id: 'vault', label: 'Onion Newsletter' },
+        { id: 'fantasy', label: 'Fantasy' },
+        { id: 'leaderboard', label: 'Statistics' },
+        { id: 'vault', label: 'Newsletter' },
         { id: 'legends', label: 'Legends' },
         { id: 'rules', label: 'Rules' }
     ];
