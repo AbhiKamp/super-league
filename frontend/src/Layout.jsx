@@ -7,6 +7,7 @@ import { Fantasy } from './pages/Fantasy';
 import { Leaderboard } from './pages/Leaderboard';
 import { Vault } from './pages/Vault';
 import { Login } from './pages/Login';
+import { UserProfile } from './pages/UserProfile';
 import { ArticleView } from './pages/ArticleView';
 import PlayerProfile from './components/PlayerProfile';
 import { AdminDashboard } from './pages/AdminDashboard';
@@ -25,6 +26,7 @@ export function Layout() {
       case 'fantasy': return <Fantasy />;
       case 'leaderboard': return <Leaderboard />;
       case 'login': return <Login />;
+      case 'profile': return <UserProfile />;
       case 'vault': return <Vault />;
       case 'article': return <ArticleView />;
       case 'player-profile': return <PlayerProfile />;

@@ -8,6 +8,28 @@ import { cn } from '../utils/cn';
 import { Login } from './Login';
 import { supabase } from '../lib/supabase';
 import { Loader } from '../components/Loader';
+import styles from './Teams.module.css';
+
+const getTeamColorClass = (teamName) => {
+    if (!teamName) return styles.defaultTeam;
+
+    const cleanName = teamName.trim();
+
+    const map = {
+        'KFC': styles.kfc,
+        'HRZxKadayadis': styles.hrzx,
+        'MILF': styles.milf,
+        'BBC': styles.bbc,
+        'AL Balal': styles.alBalal,
+        'AC Nilan': styles.acNilan,
+        'Red Wolves': styles.redWolves,
+        'DILF': styles.dilf,
+        'FAAAH United': styles.faaah,
+        'KULASTHREE FC': styles.kulasthree,
+        'Fivestars': styles.fivestars
+    };
+    return map[cleanName] || styles.defaultTeam;
+};
 
 export function Fantasy() {
     const { division } = useLeague();
@@ -230,28 +252,35 @@ export function Fantasy() {
                     Predict match outcomes to climb the global leaderboard.
                 </p>
 
-                {/* User Stats Banner */}
-                {user && !lbLoading && (
-                    <div className="bg-white/10 border border-white/20 rounded-2xl p-4 sm:p-6 flex items-center justify-between max-w-2xl mx-auto mt-6 shadow-xl backdrop-blur-md transition-all hover:bg-white/15">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white text-black flex items-center justify-center font-black text-2xl flex-shrink-0">
-                                {myName.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="text-left">
-                                <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest leading-none mb-1.5 pt-1">You</p>
-                                <p className="text-xl sm:text-2xl font-black text-white leading-none">{myName}</p>
-                            </div>
-                        </div>
-                        <div className="text-right flex flex-col items-end justify-center">
-                            <div className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400 leading-none mb-1.5 pt-1">
-                                {myPoints.toLocaleString()}
-                            </div>
-                            <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-widest leading-none">
-                                PTS
-                            </p>
-                        </div>
-                    </div>
-                )}
+        {/* User Stats Banner */}
+        {user && !lbLoading && (
+          <div className="bg-white/10 border border-white/20 rounded-2xl p-4 sm:p-6 flex items-center justify-between max-w-2xl mx-auto mt-6 shadow-xl backdrop-blur-md transition-all hover:bg-white/15">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white text-black flex items-center justify-center font-black text-2xl flex-shrink-0">
+                {myName.charAt(0).toUpperCase()}
+              </div>
+              <div className="text-left">
+                <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest leading-none mb-1.5 pt-1">Player</p>
+                <div className="flex flex-col items-start gap-1">
+                  <p className="text-xl sm:text-2xl font-black text-white leading-none">{myName}</p>
+                  {profile?.team_flair_id && (
+                    <span className={cn("px-2 py-[2px] rounded-full text-[10px] text-white font-bold leading-none tracking-wide shadow-sm border border-white/10", getTeamColorClass(profile.team_flair_id))}>
+                      {profile.team_flair_id}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="text-right flex flex-col items-end justify-center">
+              <div className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400 leading-none mb-1.5 pt-1">
+                {myPoints.toLocaleString()}
+              </div>
+              <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-widest leading-none">
+                PTS
+              </p>
+            </div>
+          </div>
+        )}
 
                 {/* Scoring rules */}
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-8 text-left mx-auto max-w-2xl mt-4">
@@ -465,54 +494,54 @@ export function Fantasy() {
                     <Crown className="w-6 h-6 text-zinc-500" />
                 </div>
 
-                {lbLoading ? (
-                    <div className="flex justify-center py-8">
-                        <Loader2 className="w-8 h-8 animate-spin text-zinc-600" />
+        {lbLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-zinc-600" />
+          </div>
+        ) : leaderboard.length === 0 ? (
+          <p className="text-center text-zinc-600 font-bold uppercase tracking-widest text-sm py-8">
+            No predictions graded yet. Be the first!
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {leaderboard.map((entry, index) => {
+              const isMe = entry.user_id === user?.id;
+              return (
+                <div
+                  key={entry.user_id}
+                  className={cn(
+                    "flex items-center justify-between p-4 sm:p-5 border rounded-2xl transition-all",
+                    isMe
+                      ? "bg-white/10 border-white/40"
+                      : index === 0
+                      ? "bg-white/5 border-white/20"
+                      : "bg-black/40 border-white/5 hover:bg-white/5"
+                  )}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-10 h-10 flex items-center justify-center rounded-full font-black text-lg",
+                      isMe ? "bg-white text-black" : index === 0 ? "bg-white text-black" : "bg-white/5 text-zinc-400"
+                    )}>
+                      {index + 1}
                     </div>
-                ) : leaderboard.length === 0 ? (
-                    <p className="text-center text-zinc-600 font-bold uppercase tracking-widest text-sm py-8">
-                        No predictions graded yet. Be the first!
-                    </p>
-                ) : (
-                    <div className="space-y-3">
-                        {leaderboard.map((entry, index) => {
-                            const isMe = entry.user_id === user?.id;
-                            return (
-                                <div
-                                    key={entry.user_id}
-                                    className={cn(
-                                        "flex items-center justify-between p-4 sm:p-5 border rounded-2xl transition-all",
-                                        isMe
-                                            ? "bg-white/10 border-white/40"
-                                            : index === 0
-                                                ? "bg-white/5 border-white/20"
-                                                : "bg-black/40 border-white/5 hover:bg-white/5"
-                                    )}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className={cn(
-                                            "w-10 h-10 flex items-center justify-center rounded-full font-black text-lg",
-                                            isMe ? "bg-white text-black" : index === 0 ? "bg-white text-black" : "bg-white/5 text-zinc-400"
-                                        )}>
-                                            {index + 1}
-                                        </div>
-                                        <span className="font-bold text-white text-lg">
-                                            {isMe ? myName : entry.username}
-                                            {isMe && <span className="ml-2 text-[10px] bg-white text-black px-2 py-0.5 rounded-full uppercase tracking-widest font-black">You</span>}
-                                        </span>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400">
-                                            {entry.total_points.toLocaleString()}
-                                        </span>
-                                        <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest block">PTS</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
+                    <span className="font-bold text-white text-lg">
+                      {isMe ? myName : entry.username}
+                      {isMe && <span className="ml-2 text-[10px] bg-white text-black px-2 py-0.5 rounded-full uppercase tracking-widest font-black">You</span>}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400">
+                      {entry.total_points.toLocaleString()}
+                    </span>
+                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest block">PTS</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

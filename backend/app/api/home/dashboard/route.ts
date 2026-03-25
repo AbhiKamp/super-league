@@ -116,13 +116,13 @@ export async function GET(request: Request) {
       };
 
       const homeGoals = targetMatch.goals?.filter((g: any) => g.team_id === targetMatch.home_team_id).map((g: any) => ({
-        name: g.player?.last_name || g.player?.first_name || 'Unknown',
+        name: g.player?.first_name || g.player?.last_name || 'Unknown',
         minute: g.minute,
         isOwnGoal: g.is_own_goal
       })) || [];
 
       const awayGoals = targetMatch.goals?.filter((g: any) => g.team_id === targetMatch.away_team_id).map((g: any) => ({
-        name: g.player?.last_name || g.player?.first_name || 'Unknown',
+        name: g.player?.first_name || g.player?.last_name || 'Unknown',
         minute: g.minute,
         isOwnGoal: g.is_own_goal
       })) || [];
@@ -147,16 +147,17 @@ export async function GET(request: Request) {
     }
 const { data: fantasyUsers } = await supabase
       .from('user_profiles') 
-      .select('id, nickname, points') 
+      .select('id, nickname, points, team_flair_id') 
       .order('points', { ascending: false })
-      .limit(3);
+      .limit(5);
 
     // Map the database response to match what the frontend expects.
     // If there is no data, it safely defaults to an empty array [] !
     const fantasyTop = fantasyUsers?.map((user: any) => ({
       id: user.id,
       name: user.nickname || 'Unknown User',
-      points: user.points || 0
+      points: user.points || 0,
+      team_flair: user.team_flair_id || null
     })) || [];
 
     return NextResponse.json({

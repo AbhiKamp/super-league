@@ -21,7 +21,7 @@ export async function GET() {
     // 1. Fetch the top 100 users straight from the profiles table
     const { data: profiles, error } = await supabase
       .from('user_profiles')
-      .select('id, nickname, real_name, email, points')
+      .select('id, nickname, real_name, email, points, team_flair_id')
       .gt('points', 0)
       .order('points', { ascending: false }) // Highest points first!
       .limit(100);
@@ -32,7 +32,8 @@ export async function GET() {
     const overall = profiles.map(p => ({
       user_id: p.id,
       username: p.nickname || p.real_name || p.email?.split('@')[0] || `Fan_${p.id.substring(0, 5)}`,
-      total_points: p.points || 0
+      total_points: p.points || 0,
+      team_flair: p.team_flair_id || null
     }));
 
     // 3. Return the contract

@@ -291,7 +291,7 @@ export function Teams() {
                                 setSelectedTeam(team);
                                 sessionStorage.setItem('selectedTeam', JSON.stringify(team));
                             }}
-                            className="group relative cursor-pointer overflow-hidden rounded-2xl..."
+                            className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 shadow-lg hover:shadow-2xl transition-shadow duration-300"
                         >
                             <div
                                 className={`absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity duration-300 ${getTeamColorClass(team.name)}`}

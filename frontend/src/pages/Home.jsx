@@ -6,6 +6,27 @@ import { NewsArticle } from '../components/NewsArticle';
 import { ChevronRight, Trophy, Goal, Zap, Loader2, Calendar } from 'lucide-react';
 import { Loader } from '../components/Loader';
 import './DashboardGrid.css';
+import teamStyles from './Teams.module.css';
+import { cn } from '../utils/cn';
+
+const getTeamColorClass = (teamName) => {
+    if (!teamName) return teamStyles.defaultTeam;
+    const cleanName = teamName.trim();
+    const map = {
+        'KFC': teamStyles.kfc,
+        'HRZxKadayadis': teamStyles.hrzx,
+        'MILF': teamStyles.milf,
+        'BBC': teamStyles.bbc,
+        'AL Balal': teamStyles.alBalal,
+        'AC Nilan': teamStyles.acNilan,
+        'Red Wolves': teamStyles.redWolves,
+        'DILF': teamStyles.dilf,
+        'FAAAH United': teamStyles.faaah,
+        'KULASTHREE FC': teamStyles.kulasthree,
+        'Fivestars': teamStyles.fivestars
+    };
+    return map[cleanName] || teamStyles.defaultTeam;
+};
 
 function SectionHeader({ title, action, onAction }) {
     return (
@@ -151,13 +172,13 @@ export function Home() {
                         {division === 'womens' ? (
                             <div className="p-6 sm:p-10 flex flex-col justify-center relative group cursor-pointer hover:bg-white/5 transition-colors overflow-hidden" onClick={() => setView('standings')}>
                                 <Trophy className="absolute right-[-20px] bottom-[-20px] w-64 h-64 text-white/[0.03] -rotate-12 group-hover:scale-110 transition-transform duration-700 pointer-events-none animate-float" />
-                                <h4 className="text-sm font-black text-zinc-500 tracking-widest uppercase mb-6 relative z-10">Upcoming Fixture &bull; Qualifier 1</h4>
+                                <h4 className="text-sm font-black text-zinc-500 tracking-widest uppercase mb-6 relative z-10">Final Result &bull; WSL</h4>
                                 <div className="space-y-4 relative z-10 w-full max-w-sm">
                                     <div className="flex justify-between items-center bg-black/60 rounded-xl p-5 border border-white/10 shadow-lg">
-                                        <span className="font-black text-white text-lg sm:text-2xl tracking-tighter uppercase truncate">Kulasthree FC</span>
+                                        <span className="font-black text-white text-lg sm:text-2xl tracking-tighter uppercase truncate">FAAAH United</span>
                                     </div>
                                     <div className="flex justify-between items-center bg-black/60 rounded-xl p-5 border border-white/10 shadow-lg">
-                                        <span className="font-black text-zinc-500 text-lg sm:text-2xl tracking-tighter uppercase truncate">FAAAH United</span>
+                                        <span className="font-black text-zinc-500 text-lg sm:text-2xl tracking-tighter uppercase truncate">KULASTHREE FC</span>
                                     </div>
                                 </div>
                                 <div className="mt-8 text-xs font-bold text-zinc-400 uppercase flex items-center gap-2 tracking-widest group-hover:text-white transition-colors">
@@ -255,13 +276,20 @@ export function Home() {
                     <GlassPanel className="p-2 overflow-hidden h-fit flex flex-col justify-center">
                         {fantasyTop.map((user, idx) => (
                             <div key={user.id} className={`flex items-center justify-between p-4 ${idx !== fantasyTop.length - 1 ? 'border-b border-white/5' : ''}`}>
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${idx === 0 ? 'bg-white text-black' : 'bg-white/5 text-zinc-400'}`}>
+                                <div className="flex items-center gap-4 min-w-0">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${idx === 0 ? 'bg-white text-black' : 'bg-white/5 text-zinc-400'}`}>
                                         {idx + 1}
                                     </div>
-                                    <span className="font-bold text-md text-white uppercase tracking-wider">{user.name}</span>
+                                    <div className="flex flex-col items-start leading-tight min-w-0">
+                                      <span className="font-bold text-md text-white uppercase tracking-wider truncate">{user.name}</span>
+                                      {user.team_flair && (
+                                        <span className={cn("px-2 py-[2px] mt-1 rounded-full text-[10px] text-white font-bold leading-none tracking-wide shadow-sm border border-white/10 shrink-0 inline-block", getTeamColorClass(user.team_flair))}>
+                                          {user.team_flair}
+                                        </span>
+                                      )}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 shrink-0">
                                     <span className="font-black text-xl text-zinc-300">{user.points.toLocaleString()}</span>
                                     <span className="text-[10px] font-bold text-zinc-600 uppercase">PTS</span>
                                 </div>
