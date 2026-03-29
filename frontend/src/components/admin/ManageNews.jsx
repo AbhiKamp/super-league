@@ -68,6 +68,7 @@ export default function ManageNews() {
         body: JSON.stringify({ 
           title: form.title, 
           summary: form.summary, 
+          category: form.category,
           image_url: finalHeroUrl, 
           content: processedBlocks,
           category: form.category 

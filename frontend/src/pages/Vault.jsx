@@ -1,3 +1,4 @@
+import React, { useState } from 'react'; 
 import { useLeague } from '../context/LeagueContext';
 import { useApi } from '../hooks/useApi';
 import { NewsArticle } from '../components/NewsArticle';
@@ -6,12 +7,18 @@ import { Loader } from '../components/Loader';
 
 export function Vault() {
   const { division } = useLeague();
-  const { data: apiResponse, loading, error } = useApi('/news');
+  const [selectedCategory, setSelectedCategory] = useState('Latest News');
+  
+  // 2. Extract 'error' here so the if(error) block works!
+  const { data: newsResp, loading, error } = useApi(`/news?category=${selectedCategory}`);
+  
+  // 3. Keep the naming consistent!
+  const newsList = newsResp?.data || [];  
 
   if (loading) {
     return <Loader text="Fetching Latest Stories..." />;
   }
-
+  
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-red-500/80 space-y-4">
@@ -19,8 +26,6 @@ export function Vault() {
       </div>
     );
   }
-
-  const articles = apiResponse?.data || [];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-12">
@@ -31,19 +36,31 @@ export function Vault() {
         </div>
         
         <div className="flex gap-2">
-          <select className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 outline-none focus:border-white/30 transition-colors focus:ring-2 focus:ring-white/20">
-            <option>Latest News</option>
-            <option>Match Reports</option>
-            <option>Satire</option>
-            <option>Features</option>
+          {/* THE DROPDOWN */}
+          <select 
+            value={selectedCategory} 
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="bg-black border border-white/10 text-white text-sm rounded-lg focus:ring-[#E8C881] focus:border-[#E8C881] block p-2.5 outline-none cursor-pointer"
+          >
+            <option value="Latest News">Latest News</option>
+            <option value="Official Editorial">Official Editorial</option>
+            <option value="Match Reports">Match Reports</option>
+            <option value="Satire">Satire</option>
+            <option value="Features">Features</option>
           </select>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {articles.map(article => (
+        {/* Use newsList here! */}
+        {newsList.map(article => (
           <NewsArticle key={article.id} article={article} />
         ))}
+        
+        {/* Fallback if the category is empty */}
+        {newsList.length === 0 && (
+           <p className="text-zinc-500 italic mt-4">No articles found in this category.</p>
+        )}
       </div>
     </div>
   );

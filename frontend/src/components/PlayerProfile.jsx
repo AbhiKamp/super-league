@@ -29,10 +29,7 @@ const getCardTextColor = (rating) => {
 
 // THE MAGIC MULTIPLIER FUNCTION
 const getAdjustedStat = (val, isMens) => {
-    const num = parseInt(val) || 0;
-    if (!isMens || num === 0) return num;
-    // Multiplies by 1.12, rounds down, and caps at 99 max
-    return Math.min(99, Math.floor(num * 1.12)); 
+    return parseInt(val) || 0;
 };
 
 const defaultAttributes = {
@@ -165,7 +162,9 @@ useEffect(() => {
                                     <img
                                         src={player.image_url}
                                         alt={player.name}
-                                        className="h-[175px] object-contain drop-shadow-2xl"
+                                        className="h-[175px] object-contain drop-shadow-2xl select-none" // <-- Added select-none
+            onContextMenu={(e) => e.preventDefault()} // <-- Disables right-click
+            draggable="false" // <-- Disables dragging
                                     />
                                 ) : (
                                     <Shield className={`h-[175px] w-auto opacity-40 ${cardTextColor}`} />
@@ -210,6 +209,8 @@ useEffect(() => {
                                 src={stylesArr[0].icon_url}
                                 alt={stylesArr[0].name}
                                 className="absolute top-[48%] left-[26px] -translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 object-contain"
+                                onContextMenu={(e) => e.preventDefault()}
+            draggable="false"
                             />
                         )}
                     </div>
@@ -282,7 +283,9 @@ useEffect(() => {
                                     <img
                                         src={style.icon_url}
                                         alt={style.name}
-                                        className="w-14 h-14 object-contain drop-shadow-md"
+                                        className="w-14 h-14 object-contain drop-shadow-md select-none"
+                                        onContextMenu={(e) => e.preventDefault()}
+                                         draggable="false"
                                     />
                                 ) : (
                                     <div className="w-14 h-14 grid place-content-center bg-black/50 rounded-xl border border-white/10">

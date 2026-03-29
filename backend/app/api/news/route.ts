@@ -4,12 +4,11 @@ import { cookies } from 'next/headers';
 
 export async function GET(request: Request) {
   try {
-    // 1. Extract query parameters (e.g., ?page=1&limit=10)
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
+    const category = searchParams.get('category'); // <--- 1. Get Category from URL
 
-    // 2. Calculate the pagination range for Supabase
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
@@ -27,16 +26,21 @@ export async function GET(request: Request) {
       }
     );
 
-    // 3. Fetch data WITH exact count metadata
-    const { data, count, error } = await supabase
-      .from('newsletter')
-      .select('*', { count: 'exact' })
-      .order('date', { ascending: false }) // Newest articles first
+    // 2. Build the query dynamically
+    let query = supabase.from('newsletter').select('*', { count: 'exact' });
+
+    // 3. Filter by category ONLY if it's provided and not "Latest News" (assuming Latest News = All)
+    if (category && category !== 'Latest News' && category !== 'All') {
+      query = query.eq('category', category);
+    }
+
+    // 4. Execute the query
+    const { data, count, error } = await query
+      .order('date', { ascending: false }) 
       .range(from, to);
 
     if (error) throw error;
 
-    // 4. Calculate total pages
     const totalPages = count ? Math.ceil(count / limit) : 0;
 
     return NextResponse.json({
