@@ -3,7 +3,7 @@ import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../hooks/useApi';
 import { fetchApi } from '../hooks/useApi';
-import { Send, CheckCircle2, RefreshCw, Loader2, Crown, Lock } from 'lucide-react';
+import { Send, CheckCircle2, RefreshCw, Loader2, Crown, Lock, Target, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { Login } from './Login';
 import { supabase } from '../lib/supabase';
@@ -55,6 +55,45 @@ export function Fantasy() {
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [submitError, setSubmitError] = useState(null);
+    const [activeTab, setActiveTab] = useState('leaderboard'); // 'leaderboard', 'pending', 'history'
+
+    // --- Prediction History ---
+    const [predictions, setPredictions] = useState([]);
+    const [predLoading, setPredLoading] = useState(true);
+    const [showAll, setShowAll] = useState(false);
+
+    useEffect(() => {
+        const fetchHistory = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) return;
+                const API_URL = import.meta.env.VITE_API_URL || '/api';
+                const res = await fetch(`${API_URL}/predictions/history`, {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+                const result = await res.json();
+                if (result.success) setPredictions(result.data || []);
+            } catch (err) {
+                console.error('Failed to fetch prediction history', err);
+            } finally {
+                setPredLoading(false);
+            }
+        };
+        if (user && (activeTab === 'history' || activeTab === 'pending')) fetchHistory();
+    }, [user, activeTab]);
+
+    const pendingPredictions = predictions.filter(p => p.status === 'pending');
+    const gradedPredictions = predictions.filter(p => p.status === 'graded');
+    const totalPredPoints = gradedPredictions.reduce((sum, p) => sum + (p.points_awarded || 0), 0);
+    
+    // Filter displayed list based on active tab
+    const filteredPredictions = useMemo(() => {
+        if (activeTab === 'pending') return pendingPredictions;
+        if (activeTab === 'history') return gradedPredictions;
+        return [];
+    }, [activeTab, predictions]);
+
+    const displayedPredictions = showAll ? filteredPredictions : filteredPredictions.slice(0, 5);
 
     // Reset form when division changes
     useEffect(() => {
@@ -422,7 +461,7 @@ export function Fantasy() {
                                                                             <option value="" disabled>Select Goalscorer...</option>
                                                                             {teamPlayers.map(p => (
                                                                                 <option key={p.id} value={p.id} className="bg-zinc-900">
-                                                                                    {p.name || `${p.first_name} ${p.last_name}`}
+                                                                                    {p.name || `${p.first_name} ${p.last_name}`}{p.position ? ` (${p.position})` : ''}
                                                                                 </option>
                                                                             ))}
                                                                         </select>
@@ -437,7 +476,7 @@ export function Fantasy() {
                                                                             <option value="Unassisted" className="bg-zinc-900 text-zinc-400">Unassisted</option>
                                                                             {assistOptions.map(p => (
                                                                                 <option key={`a-${p.id}`} value={p.id} className="bg-zinc-900">
-                                                                                    {p.name || `${p.first_name} ${p.last_name}`}
+                                                                                    {p.name || `${p.first_name} ${p.last_name}`}{p.position ? ` (${p.position})` : ''}
                                                                                 </option>
                                                                             ))}
                                                                         </select>
@@ -487,68 +526,280 @@ export function Fantasy() {
                 </div>
             )}
 
-            {/* Leaderboard */}
-            <div id="leaderboard" className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-10 backdrop-blur-md">
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-widest text-white">Leaderboard</h2>
-                    <Crown className="w-6 h-6 text-zinc-500" />
+            <div id="stats-section" className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-10 backdrop-blur-md">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-8">
+                    <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-2xl border border-white/5 w-full sm:w-auto overflow-x-auto no-scrollbar">
+                        <button
+                            onClick={() => setActiveTab('leaderboard')}
+                            className={cn(
+                                "px-4 sm:px-6 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                                activeTab === 'leaderboard' 
+                                    ? "bg-white text-black shadow-lg" 
+                                    : "text-zinc-500 hover:text-white"
+                            )}
+                        >
+                            Leaderboard
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('pending')}
+                            className={cn(
+                                "px-4 sm:px-6 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                                activeTab === 'pending' 
+                                    ? "bg-white text-black shadow-lg" 
+                                    : "text-zinc-500 hover:text-white"
+                            )}
+                        >
+                            Pending
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('history')}
+                            className={cn(
+                                "px-4 sm:px-6 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                                activeTab === 'history' 
+                                    ? "bg-white text-black shadow-lg" 
+                                    : "text-zinc-500 hover:text-white"
+                            )}
+                        >
+                            History
+                        </button>
+                    </div>
+
+                    <div className="hidden sm:flex items-center gap-2">
+                        {/* Headers removed as requested */}
+                    </div>
                 </div>
 
-        {lbLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-8 h-8 animate-spin text-zinc-600" />
-          </div>
-        ) : leaderboard.length === 0 ? (
-          <p className="text-center text-zinc-600 font-bold uppercase tracking-widest text-sm py-8">
-            No predictions graded yet. Be the first!
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {leaderboard.map((entry, index) => {
-              const isMe = entry.user_id === user?.id;
-              return (
-                <div
-                  key={entry.user_id}
-                  className={cn(
-                    "flex items-center justify-between p-4 sm:p-5 border rounded-2xl transition-all",
-                    isMe
-                      ? "bg-white/10 border-white/40"
-                      : index === 0
-                      ? "bg-white/5 border-white/20"
-                      : "bg-black/40 border-white/5 hover:bg-white/5"
-                  )}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-10 h-10 flex items-center justify-center rounded-full font-black text-lg",
-                      isMe ? "bg-white text-black" : index === 0 ? "bg-white text-black" : "bg-white/5 text-zinc-400"
-                    )}>
-                      {index + 1}
-                    </div>
-                    <span className="font-bold text-white text-lg flex flex-col items-start leading-tight">
-                      <div className="flex items-center">
-                        {isMe ? myName : entry.username}
-                        {isMe && <span className="ml-2 text-[10px] bg-white text-black px-2 py-0.5 rounded-full uppercase tracking-widest font-black">You</span>}
-                      </div>
-                      {entry.team_flair && (
-                        <span className={cn("px-2 py-[2px] mt-1 rounded-full text-[10px] text-white font-bold leading-none tracking-wide shadow-sm border border-white/10", getTeamColorClass(entry.team_flair))}>
-                          {entry.team_flair}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400">
-                      {entry.total_points.toLocaleString()}
-                    </span>
-                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest block">PTS</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                {activeTab === 'leaderboard' ? (
+                    <>
+                        {lbLoading ? (
+                            <div className="flex justify-center py-8">
+                                <Loader2 className="w-8 h-8 animate-spin text-zinc-600" />
+                            </div>
+                        ) : leaderboard.length === 0 ? (
+                            <p className="text-center text-zinc-600 font-bold uppercase tracking-widest text-sm py-8">
+                                No predictions graded yet. Be the first!
+                            </p>
+                        ) : (
+                            <div className="space-y-3">
+                                {leaderboard.map((entry, index) => {
+                                    const isMe = entry.user_id === user?.id;
+                                    return (
+                                        <div
+                                            key={entry.user_id}
+                                            className={cn(
+                                                "flex items-center justify-between p-4 sm:p-5 border rounded-2xl transition-all",
+                                                isMe
+                                                    ? "bg-white/10 border-white/40"
+                                                    : index === 0
+                                                        ? "bg-white/5 border-white/20"
+                                                        : "bg-black/40 border-white/5 hover:bg-white/5"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className={cn(
+                                                    "w-10 h-10 flex items-center justify-center rounded-full font-black text-lg",
+                                                    isMe ? "bg-white text-black" : index === 0 ? "bg-white text-black" : "bg-white/5 text-zinc-400"
+                                                )}>
+                                                    {index + 1}
+                                                </div>
+                                                <span className="font-bold text-white text-lg flex flex-col items-start leading-tight">
+                                                    <div className="flex items-center">
+                                                        {isMe ? myName : entry.username}
+                                                        {isMe && <span className="ml-2 text-[10px] bg-white text-black px-2 py-0.5 rounded-full uppercase tracking-widest font-black">You</span>}
+                                                    </div>
+                                                    {entry.team_flair && (
+                                                        <span className={cn("px-2 py-[2px] mt-1 rounded-full text-[10px] text-white font-bold leading-none tracking-wide shadow-sm border border-white/10", getTeamColorClass(entry.team_flair))}>
+                                                            {entry.team_flair}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400">
+                                                    {entry.total_points.toLocaleString()}
+                                                </span>
+                                                <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest block">PTS</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <div className="space-y-6">
+                            {/* Summary Stats (Only on History tab) */}
+                            {activeTab === 'history' && !predLoading && gradedPredictions.length > 0 && (
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                                        <p className="text-2xl font-black text-white">{predictions.length}</p>
+                                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Total</p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                                        <p className="text-2xl font-black text-green-400">{gradedPredictions.length}</p>
+                                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Graded</p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                                        <p className={`text-2xl font-black ${totalPredPoints >= 0 ? 'text-white' : 'text-red-400'}`}>{totalPredPoints}</p>
+                                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Points</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Prediction Cards */}
+                            {predLoading ? (
+                                <div className="text-center py-12">
+                                    <Loader2 className="w-8 h-8 animate-spin text-zinc-600 mx-auto mb-4" />
+                                    <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Fetching your record...</p>
+                                </div>
+                            ) : predictions.length === 0 ? (
+                                <div className="text-center py-16 border border-dashed border-white/10 rounded-3xl bg-black/20">
+                                    <Target size={40} className="text-zinc-800 mx-auto mb-4 opacity-50" />
+                                    <p className="text-zinc-500 text-sm font-bold uppercase tracking-widest">No predictions yet</p>
+                                    <p className="text-zinc-600 text-[11px] mt-2 max-w-[200px] mx-auto uppercase tracking-tighter leading-tight font-medium">Use the form above to lock in your first score!</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {displayedPredictions.map((pred) => {
+                                        const match = pred.matches;
+                                        if (!match) return null;
+
+                                        const isGraded = pred.status === 'graded';
+                                        const pts = pred.points_awarded || 0;
+                                        const isPositive = pts > 0;
+                                        const isExact = isGraded && pred.predicted_home_score === match.home_score && pred.predicted_away_score === match.away_score;
+
+                                        return (
+                                            <div key={pred.id} className={cn(
+                                                "bg-black/40 border rounded-2xl p-5 sm:p-6 transition-all hover:bg-white/5",
+                                                isExact ? "border-yellow-500/30 ring-1 ring-yellow-500/10" : "border-white/5"
+                                            )}>
+                                                {/* Match header */}
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={cn(
+                                                            "p-2 rounded-lg",
+                                                            isGraded 
+                                                                ? (isPositive ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500') 
+                                                                : 'bg-white/5 text-zinc-500'
+                                                        )}>
+                                                            {isGraded ? <CheckCircle2 size={16} /> : <Clock size={16} />}
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 leading-none mb-1">
+                                                                {new Date(match.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                                            </span>
+                                                            {isExact && (
+                                                                <span className="text-[9px] text-yellow-500 font-black uppercase tracking-widest">Perfect Score!</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {isGraded ? (
+                                                        <div className="text-right">
+                                                            <p className={cn(
+                                                                "text-xl font-black tabular-nums leading-none",
+                                                                isPositive ? "text-green-400" : pts === 0 ? "text-zinc-500" : "text-red-400"
+                                                            )}>
+                                                                {isPositive ? '+' : ''}{pts}
+                                                            </p>
+                                                            <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest mt-1">Points</p>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">Pending</span>
+                                                    )}
+                                                </div>
+
+                                                {/* Score comparison */}
+                                                <div className="flex items-center gap-4 py-4 border-y border-white/5">
+                                                    <div className="flex-1 text-right min-w-0">
+                                                        <p className="text-xs sm:text-sm font-black text-white truncate uppercase tracking-tight">{match.home_team_name}</p>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-3 px-4">
+                                                        <div className="flex flex-col items-center">
+                                                            <div className="flex items-center gap-1.5 bg-black/60 border border-white/10 rounded-xl px-4 py-2 mt-1">
+                                                                <span className="text-xl font-black text-white tabular-nums">{pred.predicted_home_score}</span>
+                                                                <span className="text-xs text-zinc-600 font-black">-</span>
+                                                                <span className="text-xl font-black text-white tabular-nums">{pred.predicted_away_score}</span>
+                                                            </div>
+                                                            <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mt-2">Prediction</p>
+                                                        </div>
+
+                                                        <div className="h-8 w-px bg-white/5"></div>
+
+                                                        <div className="flex flex-col items-center">
+                                                            <div className={cn(
+                                                                "flex items-center gap-1.5 rounded-xl px-4 py-2 mt-1 border",
+                                                                isGraded ? "bg-white/5 border-white/10" : "bg-transparent border-dashed border-white/10"
+                                                            )}>
+                                                                {isGraded ? (
+                                                                    <>
+                                                                        <span className="text-xl font-black text-zinc-500 tabular-nums">{match.home_score}</span>
+                                                                        <span className="text-xs text-zinc-700 font-black">-</span>
+                                                                        <span className="text-xl font-black text-zinc-500 tabular-nums">{match.away_score}</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-xs text-zinc-700 font-bold px-3 py-1">TBD</span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mt-2">Final Result</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex-1 text-left min-w-0">
+                                                        <p className="text-xs sm:text-sm font-black text-white truncate uppercase tracking-tight">{match.away_team_name}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Points Breakdown */}
+                                                {isGraded && pred.breakdown && pred.breakdown.length > 0 && (
+                                                    <div className="mt-5 space-y-2">
+                                                        <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600 mb-3">Event Breakdown</p>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                            {pred.breakdown.map((item, i) => (
+                                                                <div key={i} className="flex items-center justify-between gap-3 bg-black/20 p-2.5 rounded-xl border border-white/5">
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <p className={cn(
+                                                                                "text-[10px] font-black uppercase tracking-tight",
+                                                                                item.points > 0 ? "text-green-400" : item.points < 0 ? "text-red-400" : "text-zinc-600"
+                                                                            )}>
+                                                                                {item.label}
+                                                                            </p>
+                                                                            <span className={cn(
+                                                                                "text-[10px] font-black tabular-nums",
+                                                                                item.points > 0 ? "text-green-500/80" : item.points < 0 ? "text-red-500/80" : "text-zinc-700"
+                                                                            )}>
+                                                                                ({item.points > 0 ? '+' : ''}{item.points})
+                                                                            </span>
+                                                                        </div>
+                                                                        <p className="text-[9px] font-bold text-zinc-600 truncate mt-0.5">{item.detail}</p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* Show More / Less */}
+                                    {filteredPredictions.length > 5 && (
+                                        <button
+                                            onClick={() => setShowAll(!showAll)}
+                                            className="w-full flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-white hover:bg-white/5 rounded-2xl transition-all border border-dashed border-white/5 mt-4"
+                                        >
+                                            {showAll ? <><ChevronUp size={14} /> Collapse List</> : <><ChevronDown size={14} /> View All {filteredPredictions.length} {activeTab === 'pending' ? 'Pending' : 'Graded'} Predictions</>}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+            </div>
     </div>
   );
 }

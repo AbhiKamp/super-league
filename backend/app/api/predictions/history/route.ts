@@ -56,21 +56,21 @@ function computeBreakdown(prediction: any, match: any) {
         points: 100,
         detail: predDiff > 0 ? 'Home win predicted correctly' : predDiff < 0 ? 'Away win predicted correctly' : 'Draw predicted correctly'
       });
-
-      const goalError = Math.abs(predHome - actHome) + Math.abs(predAway - actAway);
-      if (goalError > 0) {
-        const penalty = goalError * 10;
-        breakdown.push({
-          label: 'Goal Difference Penalty',
-          points: -penalty,
-          detail: `Off by ${goalError} goal${goalError > 1 ? 's' : ''} total (${predHome}-${predAway} vs ${actHome}-${actAway})`
-        });
-      }
     } else {
       breakdown.push({
         label: 'Wrong Result',
         points: 0,
         detail: `Predicted ${predHome}-${predAway} but result was ${actHome}-${actAway}`
+      });
+    }
+
+    const goalError = Math.abs(predHome - actHome) + Math.abs(predAway - actAway);
+    if (goalError > 0) {
+      const penalty = goalError * 10;
+      breakdown.push({
+        label: 'Goal Difference Penalty',
+        points: -penalty,
+        detail: `Off by ${goalError} goal${goalError > 1 ? 's' : ''} total (${predHome}-${predAway} vs ${actHome}-${actAway})`
       });
     }
   }

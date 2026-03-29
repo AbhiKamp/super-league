@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApi } from '../../hooks/useApi';
-import { Calculator, Loader2, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Calculator, Loader2, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 export default function GradePredictions() {
@@ -9,6 +9,35 @@ export default function GradePredictions() {
   const matches = resp?.data || [];
   
   const [gradingId, setGradingId] = useState(null);
+  const [isRegradingAll, setIsRegradingAll] = useState(false);
+
+  const handleRegradeAll = async () => {
+    if (!confirm("⚠️ WARNING: This will re-calculate points for EVERY prediction in the database and synchronize the leaderboard. This operation may take a few seconds. Do you want to proceed?")) return;
+    
+    setIsRegradingAll(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API_URL = import.meta.env.VITE_API_URL || '/api';
+      
+      const res = await fetch(`${API_URL}/admin/predictions/regrade-all`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token}` }
+      });
+      
+      const result = await res.json();
+      if (result.success) {
+        alert("✅ " + result.message);
+        refetch();
+      } else {
+        alert("❌ Error: " + result.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Mass regrade failed. Check console.");
+    } finally {
+      setIsRegradingAll(false);
+    }
+  };
 
   // Split matches into two categories
   const pendingMatches = matches.filter(m => !m.is_graded);
@@ -94,10 +123,21 @@ export default function GradePredictions() {
       <div className="bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-8">
         <div className="flex items-center gap-3 mb-8 border-b border-white/10 pb-4">
           <Calculator className="text-[#E8C881]" size={24} />
-          <div>
+          <div className="flex-1">
             <h2 className="text-xl font-black uppercase tracking-widest text-white">Grade Fantasy Predictions</h2>
             <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mt-1">Run point calculations for completed matches</p>
           </div>
+          <button
+            onClick={handleRegradeAll}
+            disabled={isRegradingAll}
+            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+          >
+            {isRegradingAll ? (
+              <><Loader2 size={14} className="animate-spin" /> Processing...</>
+            ) : (
+              <><AlertTriangle size={14} /> Regrade All Scores</>
+            )}
+          </button>
         </div>
 
         {fetchLoading ? (

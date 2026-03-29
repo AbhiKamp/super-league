@@ -6,15 +6,20 @@ import { handleError } from '../../../../../lib/errorHandler';
 
 // 1. Authenticate the Admin User (Standard SSR Client)
 async function getSupabaseClient(request: Request) {
-  const cookieStore = await cookies();
-  const authHeader = request.headers.get('Authorization'); 
+  try {
+    const cookieStore = await cookies();
+    const authHeader = request.headers.get('Authorization'); 
 
-  return createServerClient(process.env.SUPABASE_URL as string, process.env.SUPABASE_ANON_KEY as string, {
-    cookies: { getAll() { return cookieStore.getAll() }, setAll() {} },
-    global: {
-      headers: { Authorization: authHeader || '' },
-    },
-  });
+    return createServerClient(process.env.SUPABASE_URL as string, process.env.SUPABASE_ANON_KEY as string, {
+      cookies: { getAll() { return cookieStore.getAll() }, setAll() {} },
+      global: {
+        headers: { Authorization: authHeader || '' },
+      },
+    });
+  } catch (err) {
+    // Fallback for environments where cookies() might throw or fail
+    return createClient(process.env.SUPABASE_URL as string, process.env.SUPABASE_ANON_KEY as string);
+  }
 }
 
 // --- THE FREQUENCY ALGORITHM ---
@@ -26,15 +31,17 @@ function getFrequencyMap(arr: string[] | null) {
   return map;
 }
 
-function calculatePlayerPoints(predicted: string[], actual: string[], pointsPerMatch: number) {
+function calculatePlayerPoints(predicted: string[] | null, actual: string[] | null, pointsPerMatch: number) {
+  if (!predicted || !Array.isArray(predicted)) return 0;
   const predMap = getFrequencyMap(predicted);
-  const actMap = getFrequencyMap(actual);
+  const actMap = getFrequencyMap(actual || []);
   let points = 0;
 
   for (const [playerId, predictedCount] of Object.entries(predMap)) {
     if (actMap[playerId]) {
-      const matches = Math.min(predictedCount, actMap[playerId]);
-      points += matches * pointsPerMatch;
+      // Use the lower of the two counts to avoid awarding points for "extra" predictions
+      const hits = Math.min(predictedCount as number, actMap[playerId]);
+      points += hits * pointsPerMatch;
     }
   }
   return points;
@@ -46,6 +53,12 @@ export async function POST(request: Request) {
     if (!body.match_id) throw { status: 400, message: "match_id is required for grading." };
 
     console.log(`\n--- STARTING GRADING RUN FOR MATCH: ${body.match_id} ---`);
+    console.log("Service Role Key Present:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("❌ CRITICAL ERROR: SUPABASE_SERVICE_ROLE_KEY is missing from environment variables!");
+      return NextResponse.json({ success: false, message: "Server configuration error: SUPABASE_SERVICE_ROLE_KEY is missing." }, { status: 500 });
+    }
 
     const supabase = await getSupabaseClient(request);
 
@@ -81,7 +94,10 @@ export async function POST(request: Request) {
 
     if (predError) throw predError;
     if (!predictions || predictions.length === 0) {
-      console.log("No predictions found. Aborting.");
+      console.log("No predictions found. Marking match as graded anyway.");
+      const { error: matchUpdateErr } = await supabaseAdmin.from('matches').update({ is_graded: true }).eq('id', body.match_id);
+      if (matchUpdateErr) console.warn("Match update warning:", matchUpdateErr.message);
+      
       return NextResponse.json({ success: true, message: "No predictions found for this match." });
     }
 
@@ -108,11 +124,13 @@ export async function POST(request: Request) {
           (predDiff < 0 && actDiff < 0) || 
           (predDiff === 0 && actDiff === 0) 
         ) {
-          const basePoints = 100;
-          const goalError = Math.abs(predHome - actHome) + Math.abs(predAway - actAway);
+          totalPoints += 100; 
+        }
+
+        const goalError = Math.abs(predHome - actHome) + Math.abs(predAway - actAway);
+        if (goalError > 0) {
           const penalty = goalError * 10;
-          
-          totalPoints += (basePoints - penalty); 
+          totalPoints -= penalty; 
         }
       }
 
@@ -161,7 +179,14 @@ export async function POST(request: Request) {
 
     await Promise.all(profilePromises);
     console.log("--- Grading Run Complete! ---\n");
-    await supabaseAdmin.from('matches').update({ is_graded: true }).eq('id', body.match_id);
+    // 6. Mark match as graded (Safe update)
+    const { error: matchUpdateErr } = await supabaseAdmin.from('matches').update({ is_graded: true }).eq('id', body.match_id);
+    if (matchUpdateErr) {
+      console.warn("⚠️ [WARN] Could not update matches.is_graded (column might be missing):", matchUpdateErr.message);
+    } else {
+      console.log(`✅ [DONE] Match ${body.match_id} marked as graded.`);
+    }
+
     return NextResponse.json({ 
       success: true, 
       message: `Successfully graded ${predictions.length} predictions and updated the global leaderboard!` 
