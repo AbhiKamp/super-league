@@ -238,6 +238,13 @@ export default function LiveController() {
                   <input type="text" required placeholder="e.g. 45" value={goalForm.minute} onChange={e => setGoalForm({...goalForm, minute: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none text-sm text-white" />
                 </div>
                 <div>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Goal Type</label>
+                  <select value={goalForm.is_own_goal ? 'own_goal' : 'regular'} onChange={e => { const isOwn = e.target.value === 'own_goal'; setGoalForm(prev => ({ ...prev, is_own_goal: isOwn, assist_id: isOwn ? '' : prev.assist_id })); }} className={`w-full bg-white/5 border rounded-lg p-3 outline-none text-sm font-bold ${goalForm.is_own_goal ? 'border-red-500/50 text-red-400' : 'border-white/10 text-white'}`}>
+                    <option value="regular" className="bg-zinc-900 text-white">⚽ Regular Goal</option>
+                    <option value="own_goal" className="bg-zinc-900 text-red-400">🔴 Own Goal</option>
+                  </select>
+                </div>
+                <div>
                   <label className={`block text-[10px] font-bold uppercase tracking-widest mb-2 ${goalForm.is_own_goal ? 'text-red-400' : 'text-zinc-500'}`}>
                     {goalForm.is_own_goal ? "Player Who Scored Own Goal" : "Goalscorer"}
                   </label>
@@ -253,10 +260,6 @@ export default function LiveController() {
                     {teamPlayers.filter(p => p.id !== goalForm.player_id).map(p => <option key={p.id} value={p.id} className="bg-zinc-900 text-white">{p.first_name} {p.last_name}</option>)}
                   </select>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 py-2">
-                <input type="checkbox" id="own_goal" checked={goalForm.is_own_goal} onChange={toggleOwnGoal} className="w-4 h-4 accent-red-500" />
-                <label htmlFor="own_goal" className="text-xs font-bold uppercase tracking-widest text-red-400">Mark as Own Goal</label>
               </div>
               <button type="submit" disabled={loading} className="w-full bg-white text-black font-black uppercase tracking-widest py-3 rounded-lg hover:bg-zinc-200 transition-colors mt-2">
                 {loading ? "Saving..." : "Confirm Goal"}

@@ -134,7 +134,7 @@ export function ArticleView() {
             </div>
             <div>
               <p className="text-sm font-bold text-white tracking-wide">{author}</p>
-              <p className="text-xs text-zinc-500 font-mono">Official Editorial</p>
+              <p className="text-xs text-zinc-500 font-mono">{category}</p>
             </div>
           </div>
         </div>
