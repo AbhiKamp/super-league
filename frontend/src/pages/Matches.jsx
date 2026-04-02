@@ -87,7 +87,7 @@ export function Matches() {
   // Group Matches by Status
   const liveMatches = matches.filter(m => m.status === 'live');
   const scheduledMatches = matches.filter(m => m.status === 'scheduled').reverse(); // Reverse so soonest scheduled is first
-  const completedMatches = matches.filter(m => m.status === 'completed');
+  const completedMatches = matches.filter(m => m.status === 'completed'||m.status==='forfeited');
 
   return (
     <div className="space-y-12 animate-in fade-in duration-500 pb-12">

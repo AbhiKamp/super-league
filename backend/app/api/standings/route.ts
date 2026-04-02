@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     });
 
     // 4. Calculate the stats (ONLY using completed matches)
-    const completedMatches = allMatches?.filter(m => m.status === 'completed') || [];
+    const completedMatches = allMatches?.filter(m => m.status === 'completed'|| m.status=='forfeited') || [];
     
     completedMatches.forEach(match => {
       const home = scoreboard[match.home_team_id];

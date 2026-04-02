@@ -69,7 +69,7 @@ export async function GET(request: Request) {
     // 4. PROCESS MATCHES (Calculate Form, Standings)
     allMatches?.forEach((match: any) => {
       // Calculate Stats & Form for COMPLETED matches
-      if (match.status === 'completed') {
+      if (match.status === 'completed'||match.status==='forfeited') {
         const home = scoreboard[match.home_team_id];
         const away = scoreboard[match.away_team_id];
 
