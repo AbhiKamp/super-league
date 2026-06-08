@@ -1,8 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { handleError } from '../../../../lib/errorHandler';
+
+export const dynamic = 'force-dynamic';
 
 const supabaseUrl = process.env.SUPABASE_URL as string;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
+const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY) as string;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function GET() {
@@ -16,9 +19,10 @@ export async function GET() {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, data: teams });
-  } catch (error) {
+    return NextResponse.json({ success: true, data: teams || [] });
+  } catch (error: any) {
     console.error("Fetch Teams Error:", error);
-    return NextResponse.json({ error: "Failed to fetch teams" }, { status: 500 });
+    // Using your centralized error handler
+    return handleError(error, 'Fetch WC Teams');
   }
 }
