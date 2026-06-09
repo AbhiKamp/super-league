@@ -7,8 +7,17 @@ const supabaseUrl = process.env.SUPABASE_URL as string;
 const supabaseServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY) as string; 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Set the global deadline
+const PREDICTION_DEADLINE = new Date('2026-06-20T00:00:00Z');
+
 export async function POST(request: NextRequest) {
+  console.log("GROUP POST HIT");
   try {
+    // 1. DEADLINE CHECK
+    if (new Date() > PREDICTION_DEADLINE) {
+      return NextResponse.json({ success: false, error: 'Deadline passed. Predictions are locked.' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { user_id, predictions } = body;
 
@@ -17,7 +26,19 @@ export async function POST(request: NextRequest) {
        return NextResponse.json({ success: false, error: 'Invalid payload data' }, { status: 400 });
     }
 
-    // Format the data to match our new schema
+    // 2. ONE-TIME SUBMISSION CHECK
+    // Look for any existing group prediction for this user
+    const { data: existingRecords } = await supabase
+      .from('wc_group_predictions')
+      .select('user_id')
+      .eq('user_id', user_id)
+      .limit(1);
+
+    if (existingRecords && existingRecords.length > 0) {
+      return NextResponse.json({ success: false, error: 'Predictions have already been submitted and cannot be changed.' }, { status: 403 });
+    }
+
+    // 3. IF SAFE, FORMAT AND SAVE TO DATABASE
     const formattedPredictions = predictions.map((pred: any) => ({
       user_id,
       group_name: pred.group_name,

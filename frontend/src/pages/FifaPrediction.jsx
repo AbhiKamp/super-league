@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { createPortal } from 'react-dom';
 import { AutocompleteInput } from '../components/AutocompleteInput';
 import './FifaPrediction.css';
+import { supabase } from '../lib/supabase';
 
 export function FifaPrediction() {
   const { user, profile, signInWithGoogle } = useAuth();
@@ -17,6 +18,14 @@ export function FifaPrediction() {
 
   const [dbGroups, setDbGroups] = useState(null);
   const [groupStandings, setGroupStandings] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
+
+  const PREDICTION_DEADLINE = new Date('2026-06-20T00:00:00Z'); 
+  const isPastDeadline = new Date() > PREDICTION_DEADLINE;
+  
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  const isLocked = hasSubmitted || isPastDeadline;
 
   useEffect(() => {
     async function loadGroups() {
@@ -29,6 +38,7 @@ export function FifaPrediction() {
             const groupLetter = team.group_name.replace('Group ', '');
             if (!fetchedGroups[groupLetter]) fetchedGroups[groupLetter] = [];
             fetchedGroups[groupLetter].push({ 
+              id: team.id,
               name: team.name, 
               logo_url: team.logo_url, 
               group: groupLetter 
@@ -93,6 +103,7 @@ export function FifaPrediction() {
         const json = await res.json();
         
         if (json.success && json.data && json.data.length > 0) {
+          setHasSubmitted(true);
           const standings = {};
           const allTeams = Object.values(dbGroups).flat();
           
@@ -154,9 +165,12 @@ export function FifaPrediction() {
   const [particles, setParticles] = useState([]);
   const [showHint, setShowHint] = useState(false);
 
-  // Set page title and set up IntersectionObserver on mount
+  // Set page title and set up IntersectionObserver AFTER data loads
   useEffect(() => {
-    document.title = "FIFA World Cup 2026 — Prediction Challenge";
+    document.title = "FIFA World Cup 2026 — Prediction Challenge";  
+
+    // Wait until the data actually exists before trying to observe the elements!
+    if (!dbGroups || !groupStandings) return;
 
     const io = new IntersectionObserver(
       (entries) => {
@@ -166,10 +180,13 @@ export function FifaPrediction() {
       },
       { threshold: 0.1 }
     );
+    
+    // Now it will successfully find the rendered sections
     document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
 
     return () => io.disconnect();
-  }, []);
+    
+  }, [dbGroups, groupStandings]); // <-- Add these dependencies!
 
   const handleToggleFlags = (e) => {
     if (e) e.preventDefault();
@@ -271,6 +288,24 @@ export function FifaPrediction() {
     });
   };
 
+  const moveTeam = (groupName, currentIndex, direction) => {
+    const updatedTeams = [...groupStandings[groupName]];
+    const targetIndex = currentIndex + direction;
+
+    // Prevent moving out of bounds
+    if (targetIndex < 0 || targetIndex >= updatedTeams.length) return;
+
+    // Swap the teams
+    const temp = updatedTeams[currentIndex];
+    updatedTeams[currentIndex] = updatedTeams[targetIndex];
+    updatedTeams[targetIndex] = temp;
+
+    setGroupStandings({
+      ...groupStandings,
+      [groupName]: updatedTeams
+    });
+  };
+
   const handleSubmit = async () => {
     if (!user) {
       alert("Please sign in to submit predictions!");
@@ -292,32 +327,59 @@ export function FifaPrediction() {
     });
 
     try {
-      const groupRes = await fetch(`${import.meta.env.VITE_API_URL}/wc/predictions/groups`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user.id,
-          predictions: groupPredictions
-        })
-      });
+      const {
+          data: { session }
+        } = await supabase.auth.getSession();
+
+        const token = session?.access_token;
+
+      const groupRes = await fetch(
+          `${import.meta.env.VITE_API_URL}/wc/predictions/groups`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              user_id: user.id,
+              predictions: groupPredictions
+            })
+          }
+        );
       
-      const awardsRes = await fetch(`${import.meta.env.VITE_API_URL}/wc/predictions/awards`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user.id,
-          golden_boot_id: goldenBootId,
-          golden_ball_id: goldenBallId,
-          golden_glove_id: goldenGloveId
-        })
-      });
+      const awardsRes = await fetch(
+        `${import.meta.env.VITE_API_URL}/wc/predictions/awards`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            user_id: user.id,
+            golden_boot_id: goldenBootId,
+            golden_ball_id: goldenBallId,
+            golden_glove_id: goldenGloveId
+          })
+        }
+      );
+
+      if (!groupRes.ok) {
+        console.log(await groupRes.text());
+      }
+
+      if (!awardsRes.ok) {
+        console.log(await awardsRes.text());
+      }
 
       if (!groupRes.ok || !awardsRes.ok) {
-        throw new Error("Failed to save to database. It might be paused.");
+        throw new Error("API request failed");
       }
 
       console.log("Predictions Submitted to API!");
       alert("Predictions submitted successfully!");
+      setHasSubmitted(true);
     } catch (e) {
       console.error("API submission failed:", e);
       alert("Failed to submit to database. Saving locally instead. " + e.message);
@@ -344,6 +406,19 @@ export function FifaPrediction() {
       console.error("Could not save predictions:", e);
     }
   };
+
+  useEffect(() => {
+    async function fetchLeaderboard() {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/wc/leaderboard`);
+        const json = await res.json();
+        if (json.success) setLeaderboard(json.data);
+      } catch (err) {
+        console.error("Leaderboard fetch failed", err);
+      }
+    }
+    fetchLeaderboard();
+  }, []);
 
   const [portalTarget, setPortalTarget] = useState(null);
   useEffect(() => {
@@ -513,8 +588,8 @@ export function FifaPrediction() {
           
           {/* Standings/Login Card */}
           {user ? (
-                <div className="bg-black/30 border border-white/10 rounded-2xl py-10 flex items-center justify-center gap-8 sm:gap-16 shadow-lg backdrop-blur-md transition-all hover:bg-black/50" style={{ flex: 1, minWidth: '340px' }}>
-                  <div className="flex items-center gap-5 sm:gap-6">
+                <div className="bg-black/30 border border-white/10 rounded-2xl p-5 sm:p-8 flex items-center justify-between shadow-lg backdrop-blur-md transition-all hover:bg-black/50" style={{ flex: 1, width: '100%' }}>
+                  <div className="flex items-center gap-3 sm:gap-6">
                     
                     {/* Rank */}
                     <div className="flex flex-col items-center justify-center mr-2">
@@ -526,9 +601,9 @@ export function FifaPrediction() {
                     <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-white/5 flex items-center justify-center shadow-md">
                       {userTeam ? (
                         <img 
-                          src={`https://flagcdn.com/48x36/${userTeam.code}.png`} 
+                          src={userTeam.logo_url} 
                           alt={userTeam.name}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover bg-white"
                         />
                       ) : (
                         <span className="text-[10px] font-bold text-zinc-500">YOU</span>
@@ -551,7 +626,7 @@ export function FifaPrediction() {
                   {/* Points */}
                   <div className="text-right flex flex-col items-end justify-center">
                     <div className="text-2xl font-fifa text-white leading-none mb-1">
-                      {profile?.points || 0}
+                      {leaderboard.find(p => p.user_profiles?.nickname === profile?.nickname)?.points || 0}
                     </div>
                     <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none">
                       Points
@@ -605,7 +680,35 @@ export function FifaPrediction() {
               Drag and position teams in each group to predict the group stage standings
             </p>
           </div>
-
+          {isLocked && (
+            <div style={{
+              background: 'rgba(0, 0, 0, 0.4)',
+              border: '1px solid var(--fifa-gold)',
+              padding: '16px 24px',
+              borderRadius: '12px',
+              marginBottom: '32px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px',
+              maxWidth: '600px',
+              margin: '0 auto 32px auto',
+              backdropFilter: 'blur(8px)'
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--fifa-gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span className="font-fifa" style={{ color: 'var(--fifa-gold)', fontSize: '20px', letterSpacing: '1px' }}>
+                PREDICTIONS LOCKED
+              </span>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', margin: 0, textAlign: 'center' }}>
+                {isPastDeadline 
+                  ? "The deadline for Group Stage predictions has officially passed." 
+                  : "Predictions already made for the Group Stage. Wait for the knockout phases!"}
+              </p>
+            </div>
+          )}
           <div className="groups-container">
             {Object.keys(groupStandings).map((groupName) => (
               <div className="group-card" key={groupName}>
@@ -636,18 +739,50 @@ export function FifaPrediction() {
                               className={`team-card ${isAdvancing ? '' : 'eliminated'} ${
                                 isDraggingThis ? 'dragging' : ''
                               }`}
-                              draggable={true}
+                              draggable={!isLocked}
                               onDragStart={(e) => handleDragStart(e, groupName, idx)}
                               onDragEnd={handleDragEnd}
                               data-team={team.name}
                             >
-                              <div className="team-info">
-                                <img src={`https://flagcdn.com/48x36/${team.code}.png`} alt={team.name} className="team-flag-img" />
-                                <span className="team-name">{team.name}</span>
-                              </div>
-                              <div className="drag-handle">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                              </div>
+                              <div className="team-info" style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: '8px' }}>
+  <img src={team.logo_url} alt={team.name} className="team-flag-img" style={{ flexShrink: 0 }} />
+  <span className="team-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.name}</span>
+</div>
+
+{/* NEW: Mobile-friendly Up/Down Buttons */}
+{!isLocked && (
+  <>
+  <div className="mobile-move-controls" style={{ display: 'flex', flexDirection: 'column', marginRight: '4px', flexShrink: 0 }}>
+  <button 
+    onClick={(e) => { e.preventDefault(); moveTeam(groupName, idx, -1); }}
+    disabled={idx === 0}
+    style={{ 
+      background: 'transparent', border: 'none', padding: '0px 8px', fontSize: '12px',
+      color: idx === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.8)',
+      cursor: idx === 0 ? 'default' : 'pointer'
+    }}
+  >
+    ▲
+  </button>
+  <button 
+    onClick={(e) => { e.preventDefault(); moveTeam(groupName, idx, 1); }}
+    disabled={idx === 3}
+    style={{ 
+      background: 'transparent', border: 'none', padding: '0px 8px', fontSize: '12px',
+      color: idx === 3 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.8)',
+      cursor: idx === 3 ? 'default' : 'pointer'
+    }}
+  >
+    ▼
+  </button>
+</div>
+</>
+)}
+
+{/* Existing Desktop Drag Handle */}
+<div className="drag-handle" style={{ opacity: 0.5 }}>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+</div>
                             </div>
                           </div>
                         </div>
@@ -673,7 +808,7 @@ export function FifaPrediction() {
               </div>
               <div className="group-list">
                 <div className="group-row">
-                  <div className="group-slot advancing">
+                  <div className="group-slot advancing" style={{ pointerEvents: isLocked ? 'none' : 'auto', opacity: isLocked ? 0.7 : 1 }}>
                     <AutocompleteInput 
                       placeholder="Best Scorer..." 
                       value={goldenBoot}
@@ -691,7 +826,7 @@ export function FifaPrediction() {
               </div>
               <div className="group-list">
                 <div className="group-row">
-                  <div className="group-slot advancing">
+                  <div className="group-slot advancing" style={{ pointerEvents: isLocked ? 'none' : 'auto', opacity: isLocked ? 0.7 : 1 }}>
                     <AutocompleteInput 
                       placeholder="Best Goalkeeper..." 
                       value={goldenGlove}
@@ -710,7 +845,7 @@ export function FifaPrediction() {
               </div>
               <div className="group-list">
                 <div className="group-row">
-                  <div className="group-slot advancing">
+                  <div className="group-slot advancing" style={{ pointerEvents: isLocked ? 'none' : 'auto', opacity: isLocked ? 0.7 : 1 }}>
                     <AutocompleteInput 
                       placeholder="Best Player..." 
                       value={goldenBall}
@@ -722,115 +857,73 @@ export function FifaPrediction() {
               </div>
             </div>
           </div>
-
+            
+          {!isLocked && (
           <div className="submit-section">
             <button className="submit-btn" id="submitBtn" onClick={handleSubmit}>
               Submit Predictions
             </button>
           </div>
+          )}
         </section>
 
           </div>
           <div className="fifa-side-content">
-            <section className="section reveal">
+            <section className="section">
               <div className="sh">
                 <div className="st font-fifa">
                   <div className="st-bar" style={{ '--bc': 'var(--fifa-gold)' }}></div>
                   Leaderboard
                 </div>
               </div>
-              <div className="lb-wrap">
+              
+              {/* Added maxHeight and overflowY so the 80+ users scroll inside this box instead of stretching the page! */}
+              <div className="lb-wrap" style={{ maxHeight: '600px', overflowY: 'auto', paddingRight: '10px' }}>
                 <div className="lb-hdr">
                   <span className="lb-hdr-t font-fifa">Top Predictors</span>
                 </div>
-            
-            <div className="lb-row">
-              <span className="lb-rk g font-fifa">1</span>
-              <div className="lbav" style={{ color: 'var(--fifa-gold)', borderColor: 'var(--fifa-gold)' }}>
-                RK
-              </div>
-              <div className="lb-inf">
-                <div className="lb-nm">Rajan Kumar</div>
-                <div className="lb-ct flex items-center gap-2">
-                  <img src="https://flagcdn.com/24x18/mx.png" alt="Mexico" className="w-4 h-3 object-cover rounded-[2px]" />
-                  Mexico
-                </div>
-              </div>
-              <div className="lb-sc">
-                <div className="lb-p font-fifa" style={{ color: 'var(--fifa-gold)' }}>2,840</div>
-                <div className="lb-pl">pts</div>
-              </div>
-            </div>
 
-            <div className="lb-row">
-              <span className="lb-rk s font-fifa">2</span>
-              <div className="lbav" style={{ color: '#c0c0c0', borderColor: '#c0c0c0' }}>
-                ML
-              </div>
-              <div className="lb-inf">
-                <div className="lb-nm">Maria Lopez</div>
-                <div className="lb-ct flex items-center gap-2">
-                  <img src="https://flagcdn.com/24x18/mx.png" alt="Mexico" className="w-4 h-3 object-cover rounded-[2px]" />
-                  Mexico
-                </div>
-              </div>
-              <div className="lb-sc">
-                <div className="lb-p font-fifa" style={{ color: '#c0c0c0' }}>2,790</div>
-                <div className="lb-pl">pts</div>
-              </div>
-            </div>
+                {leaderboard.map((player, idx) => {
+                  // Determine medal colors for top 3
+                  let rankColor = '#fff';
+                  if (idx === 0) rankColor = 'var(--fifa-gold)';
+                  else if (idx === 1) rankColor = '#c0c0c0';
+                  else if (idx === 2) rankColor = '#cd7f32';
 
-            <div className="lb-row">
-              <span className="lb-rk b font-fifa">3</span>
-              <div className="lbav" style={{ color: '#cd7f32', borderColor: '#cd7f32' }}>
-                CW
-              </div>
-              <div className="lb-inf">
-                <div className="lb-nm">Chen Wei</div>
-                <div className="lb-ct flex items-center gap-2">
-                  <img src="https://flagcdn.com/24x18/de.png" alt="Germany" className="w-4 h-3 object-cover rounded-[2px]" />
-                  Germany
-                </div>
-              </div>
-              <div className="lb-sc">
-                <div className="lb-p font-fifa" style={{ color: '#cd7f32' }}>2,700</div>
-                <div className="lb-pl">pts</div>
-              </div>
-            </div>
+                  // Find the logo for their flair
+                  const playerFlair = player.user_profiles?.wc_team_flair;
+                  const playerTeam = playerFlair ? allTeams.find(t => t.name === playerFlair) : null;
 
-            <div className="lb-row" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '12px' }}>
-              <span className="lb-rk font-fifa" style={{ color: '#fff' }}>{profile?.rank || '-'}</span>
-              <div className="lbav overflow-hidden bg-white/5 border border-white/30" style={{ color: '#fff' }}>
-                {userTeam ? (
-                  <img src={`https://flagcdn.com/48x36/${userTeam.code}.png`} alt={userTeam.name} className="w-full h-full object-cover" />
-                ) : (
-                  'YOU'
-                )}
+                  return (
+                    <div className="lb-row" key={idx} style={{ marginBottom: '12px' }}>
+                      <span className="lb-rk font-fifa" style={{ color: rankColor }}>{idx + 1}</span>
+                      <div className="lbav overflow-hidden bg-white/5 border border-white/30" style={{ borderColor: rankColor }}>
+                        {playerTeam ? (
+                          <img src={playerTeam.logo_url} alt={playerTeam.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span style={{ fontSize: '10px', color: rankColor }}>--</span>
+                        )}
+                      </div>
+                      <div className="lb-inf">
+                        <div className="lb-nm" style={{ fontWeight: '800' }}>{player.user_profiles?.nickname || 'Predictor'}</div>
+                        {playerTeam && (
+                          <div className="lb-ct flex items-center gap-2 uppercase">
+                            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)' }}>{playerTeam.name}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="lb-sc">
+                        <div className="lb-p font-fifa" style={{ color: rankColor }}>{player.points}</div>
+                        <div className="lb-pl">pts</div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="lb-inf">
-                <div className="lb-nm" style={{ fontWeight: '800' }}>{profile?.nickname || 'Your Position'}</div>
-                <div className="lb-ct flex items-center gap-2 uppercase">
-                  {userTeam ? (
-                    <>
-                      <img src={`https://flagcdn.com/24x18/${userTeam.code}.png`} alt={userTeam.name} className="w-4 h-3 object-cover rounded-[2px]" />
-                      {profile.wc_team_flair}
-                    </>
-                  ) : (
-                    '--'
-                  )}
-                </div>
-              </div>
-              <div className="lb-sc">
-                <div className="lb-p font-fifa" style={{ color: '#fff' }}>{profile?.points || 0}</div>
-                <div className="lb-pl">pts</div>
-              </div>
-            </div>
-
+            </section>
           </div>
-        </section>
+        </div>
       </div>
     </div>
-  </div>
-</div>
   );
 }

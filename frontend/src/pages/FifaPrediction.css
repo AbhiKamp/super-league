@@ -2524,3 +2524,19 @@
   color: white;
   font-weight: 800;
 }
+
+@keyframes gold-pulse {
+  0%, 100% { 
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3); 
+    transform: scale(1); 
+  }
+  50% { 
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.7); 
+    transform: scale(1.05); 
+  }
+}
+
+.fifa-nav-item {
+  color: #FFD700 !important; /* Gold color */
+  animation: gold-pulse 2s infinite ease-in-out;
+}

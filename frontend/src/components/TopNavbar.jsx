@@ -11,6 +11,7 @@ export function TopNavbar() {
 
     const views = [
         { id: 'home', label: 'Home' },
+        { id: 'fifa', label: 'FIFA FANTASY LEAGUE' },
         { id: 'matches', label: 'Matches' },
         { id: 'standings', label: 'Standings' },
         { id: 'teams', label: 'Clubs' },
@@ -22,7 +23,15 @@ export function TopNavbar() {
     ];
 
     const handleNav = (v) => {
-        setView(v);
+        if (v === 'fifa') {
+            setView('fantasy');           // Switch to the Fantasy page
+            setFantasySection('fifa');    // Switch to FIFA mode
+        } else if (v === 'fantasy') {
+            setView('fantasy');
+            setFantasySection('season1'); // Default to your college league
+        } else {
+            setView(v);
+        }
         setMenuOpen(false);
     };
 
@@ -153,7 +162,9 @@ export function TopNavbar() {
                             onClick={() => handleNav(v.id)}
                             className={cn(
                                 "text-2xl sm:text-4xl font-bold tracking-widest transition-all duration-300 hover:scale-110",
-                                view === v.id ? "text-white" : "text-zinc-600 hover:text-white"
+                                view === v.id ? "text-white" : "text-zinc-600 hover:text-white",
+                                // This is the magic line that adds the animation!
+                                v.id === 'fifa' && "fifa-nav-item" 
                             )}
                         >
                             {v.label.toUpperCase()}
