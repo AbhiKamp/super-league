@@ -25,7 +25,7 @@ import { Rules } from './pages/Rules';
 
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import { useLeague } from './context/LeagueContext';
 // A smart wrapper to protect routes that require login
 function ProtectedRoute({ children }) {
   const { user, profile, loading } = useAuth();
@@ -72,6 +72,17 @@ function GlobalAuthRedirect() {
   return null; // This component renders nothing visually
 }
 
+function WcRoute() {
+  const { setFantasySection } = useLeague();
+  
+  useEffect(() => {
+    setFantasySection('fifa');
+  }, [setFantasySection]);
+
+  return <Fantasy />;
+}
+
+
 function App() {
   return (
     <AuthProvider>
@@ -97,6 +108,8 @@ function App() {
             {/* Note the :id syntax! This catches /article/12345 */}
             <Route path="/article/:id" element={<PublicRoute><ArticleView /></PublicRoute>} />
 
+            <Route path="/wc" element={<ProtectedRoute><WcRoute /></ProtectedRoute>} />
+            
             {/* Protected Routes (Require Login/Profile) */}
             <Route path="/fantasy" element={<ProtectedRoute><Fantasy /></ProtectedRoute>} />
             <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />

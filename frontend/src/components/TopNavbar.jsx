@@ -6,20 +6,21 @@ import { cn } from '../utils/cn';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 export function TopNavbar() {
-    // We only need division and fantasy states from Context now!
     const { division, setDivision, fantasySection, setFantasySection } = useLeague();
     const { user, signInWithGoogle } = useAuth();
     const [menuOpen, setMenuOpen] = useState(false);
     
-    // React Router Hooks
     const location = useLocation();
     const navigate = useNavigate();
     
     const currentPath = location.pathname;
+    // NEW: Treat both /fantasy and /wc as the fantasy section for UI purposes
+    const isFantasyRoute = currentPath === '/fantasy' || currentPath === '/wc';
 
     const views = [
         { path: '/', label: 'Home' },
-        { path: '/fantasy', id: 'fifa', label: 'FIFA FANTASY LEAGUE' },
+        // NEW: Point the dropdown link directly to /wc
+        { path: '/wc', id: 'fifa', label: 'FIFA FANTASY LEAGUE' }, 
         { path: '/matches', label: 'Matches' },
         { path: '/standings', label: 'Standings' },
         { path: '/teams', label: 'Clubs' },
@@ -31,8 +32,8 @@ export function TopNavbar() {
 
     const handleNav = (v) => {
         if (v.id === 'fifa') {
-            setFantasySection('fifa');    // Switch to FIFA mode
-            navigate('/fantasy');         // Navigate to the fantasy route
+            setFantasySection('fifa');
+            navigate('/wc'); // Go to /wc instead of /fantasy
         } else {
             navigate(v.path);
         }
@@ -46,13 +47,13 @@ export function TopNavbar() {
                 <div className="flex items-center gap-1 sm:gap-4">
                     {currentPath !== '/' && (
                         <button
-                            onClick={() => navigate(-1)} // React Router's built-in back function
+                            onClick={() => navigate(-1)} 
                             className="p-1 sm:p-2 text-zinc-400 hover:text-white hover:bg-white/10 rounded-full transition-colors flex-shrink-0"
                         >
                             <ArrowLeft size={20} className="sm:w-6 sm:h-6" />
                         </button>
                     )}
-                    {!(currentPath === '/fantasy' && fantasySection === 'fifa') && (
+                    {!(isFantasyRoute && fantasySection === 'fifa') && (
                         <Link
                             to="/"
                             className="flex items-center gap-2 sm:gap-3 cursor-pointer hover:opacity-80 transition-opacity"
@@ -76,7 +77,7 @@ export function TopNavbar() {
                 </div>
 
                 {/* Center: Division Toggle */}
-                {currentPath !== '/fantasy' || fantasySection !== 'fifa' ? (
+                {!isFantasyRoute || fantasySection !== 'fifa' ? (
                 <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-white/5 p-1 rounded-full border border-white/10">
                     <button
                         onClick={() => setDivision('mens')}
@@ -102,7 +103,10 @@ export function TopNavbar() {
                 ) : (
                 <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-white/5 p-1 rounded-full border border-white/10">
                     <button
-                        onClick={() => setFantasySection('season1')}
+                        onClick={() => {
+                            setFantasySection('season1');
+                            navigate('/fantasy'); // If they click Season 1, send them back to the main fantasy URL
+                        }}
                         className={cn(
                             "px-2 py-1 sm:px-4 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-medium transition-colors duration-300 w-16 sm:w-24",
                             fantasySection === 'season1' ? "bg-white text-black" : "text-zinc-400 hover:text-white"
@@ -112,7 +116,10 @@ export function TopNavbar() {
                         <span className="hidden sm:inline">Season 1</span>
                     </button>
                     <button
-                        onClick={() => setFantasySection('fifa')}
+                        onClick={() => {
+                            setFantasySection('fifa');
+                            navigate('/wc');
+                        }}
                         className={cn(
                             "px-2 py-1 sm:px-4 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-medium transition-colors duration-300 w-16 sm:w-24",
                             fantasySection === 'fifa' ? "bg-white text-black" : "text-zinc-400 hover:text-white"
