@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, User } from 'lucide-react'; // Removed ArrowLeft
+import { Menu, X, User } from 'lucide-react'; 
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';

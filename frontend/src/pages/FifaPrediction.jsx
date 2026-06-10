@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect ,useCallback} from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
 import { createPortal } from 'react-dom';
@@ -11,6 +11,10 @@ import { useNavigate } from 'react-router-dom';
 export function FifaPrediction() {
   const { user, profile, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  const goBack=useCallback(()=>{
+    navigate(-1);
+  },[navigate]);
 
   if (!user) {
     return (
@@ -112,7 +116,6 @@ export function FifaPrediction() {
       setPredictionPhase('knockouts');
     }
   };
-
   useEffect(() => {
     const handleFifaBack = () => {
       if (predictionPhase === 'knockouts') {
