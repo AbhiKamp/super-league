@@ -3,6 +3,7 @@ import { MatchNode } from '../components/bracket/MatchNode';
 import { generateRoundOf32, generateEmptyKnockouts } from '../utils/fifaBracketLogic';
 import './KnockoutBracket.css';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const FullScreenConfetti = () => {
   const [particles, setParticles] = useState([]);
@@ -174,29 +175,39 @@ export function KnockoutBracket({ onBack }) {
         // Let's see how FifaPrediction loads it... we might need to fetch the teams again
         // Or if the full object is saved, we use it. For now, we will fetch /wc/teams to map them.
         
-        const fetchTeamsAndInitialize = async () => {
-          const res = await fetch(`${import.meta.env.VITE_API_URL}/wc/teams`);
-          const json = await res.json();
-          const fetchedGroups = {};
-          
-          if (json.success) {
-            json.data.forEach(t => {
-              const gLetter = t.group_name.replace('Group ', '');
-              if (!fetchedGroups[gLetter]) fetchedGroups[gLetter] = [];
-              fetchedGroups[gLetter].push({ id: t.id, name: t.name, logo_url: t.logo_url, group: gLetter });
-            });
+        const generateKnockouts = async () => {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
             
-            // map standings
-            const fullStandings = {};
-            Object.keys(groupStandings).forEach(group => {
-              fullStandings[group] = groupStandings[group].map(item => {
-                const teamName = typeof item.team === 'string' ? item.team : (item.name || '');
-                const found = fetchedGroups[group].find(t => t.name === teamName);
-                return found || { name: teamName };
-              });
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/wc/predictions/knockouts/generate`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.access_token}`
+              },
+              body: JSON.stringify({
+                user_id: user.id,
+                advancing_third_place_groups: selectedThirdGroups
+              })
             });
 
-            const r32Matches = generateRoundOf32(fullStandings, selectedThirdGroups);
+            const json = await res.json();
+            
+            if (!json.success) {
+              console.error("API Error:", json.error);
+              alert("Failed to generate knockout bracket: " + json.error);
+              if (onBack) onBack();
+              return;
+            }
+
+            const r32Matches = json.data.round_of_32.map((match, i) => ({
+              id: `m${i+1}`,
+              nextMatchId: `m${Math.floor(i/2) + 17}`,
+              team1: match.team1,
+              team2: match.team2,
+              winnerId: null
+            }));
+
             const emptyKnockouts = generateEmptyKnockouts();
 
             setBracketState({
@@ -206,10 +217,14 @@ export function KnockoutBracket({ onBack }) {
               semiFinals: emptyKnockouts.semiFinals,
               final: emptyKnockouts.final
             });
+          } catch (e) {
+            console.error("Generation failed:", e);
+            alert("Failed to generate bracket.");
+            if (onBack) onBack();
           }
         };
 
-        fetchTeamsAndInitialize();
+        generateKnockouts();
       }
     } catch (e) {
       console.error(e);
@@ -319,8 +334,42 @@ export function KnockoutBracket({ onBack }) {
         <div className="bg-corner-br"></div>
       </div>
 
-      <header className="kb-header">
-        <h1 className="font-fifa-italic">KNOCKOUT <span style={{color: 'var(--fifa-gold)'}}>BRACKET</span></h1>
+      <header className="kb-header" style={{ flexDirection: 'column', paddingBottom: '20px' }}>
+        <h1 className="font-fifa-italic" style={{ marginBottom: '20px' }}>KNOCKOUT <span style={{color: 'var(--fifa-gold)'}}>BRACKET</span></h1>
+        
+        {/* Knockout Bracket Scoring Rules */}
+        <div className="lb-wrap" style={{ width: '100%', maxWidth: '800px', margin: '0 auto', background: 'rgba(0,0,0,0.5)' }}>
+          <div className="lb-hdr" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(0, 0, 0, 0.2)', justifyContent: 'center', padding: '16px' }}>
+            <span className="lb-hdr-t font-fifa" style={{ fontSize: '20px' }}>SCORING RULES</span>
+          </div>
+          <div className="dash-rules" style={{ padding: '20px 24px' }}>
+            <p style={{ color: '#fff', opacity: 0.8, fontSize: '14px', marginBottom: '16px', textAlign: 'center', fontFamily: 'Inter, sans-serif' }}>
+              Points are awarded for each team correctly predicted to win their matchup and advance to the subsequent round:
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold' }}>ROUND OF 32</span>
+                <span style={{ color: '#fff', fontSize: '14px' }}>- <span className="rule-highlight">35 points</span> each</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold' }}>ROUND OF 16</span>
+                <span style={{ color: '#fff', fontSize: '14px' }}>- <span className="rule-highlight">75 points</span> each</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold' }}>QUARTER-FINAL</span>
+                <span style={{ color: '#fff', fontSize: '14px' }}>- <span className="rule-highlight">150 points</span> each</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold' }}>SEMI-FINAL</span>
+                <span style={{ color: '#fff', fontSize: '14px' }}>- <span className="rule-highlight">200 points</span> each</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold' }}>WORLD CUP WINNER</span>
+                <span style={{ color: '#fff', fontSize: '14px' }}>- <span className="rule-highlight">300 points</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
       </header>
 
       <div className="kb-header-wrapper" style={{ position: 'sticky', top: 0, zIndex: 50, overflow: 'hidden', background: 'var(--fifa-blue)', boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)' }}>

@@ -624,6 +624,7 @@
       @media (min-width: 1024px) {
         .page {
           max-width: 100%;
+          width: 100%;
           padding: 0 40px;
         }
       }
@@ -1911,7 +1912,7 @@
         /* Group Stages Styling */
         .groups-container {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
           gap: 24px;
           padding: 16px 0;
           max-width: 100%;
@@ -1926,7 +1927,7 @@
           -webkit-backdrop-filter: blur(20px);
           position: relative;
           overflow: hidden;
-          transition: all 0.4s ease;
+          transition: transform 0.4s ease, box-shadow 0.4s ease, background 0.4s ease, border-color 0.4s ease;
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
           color: #fff;
         }
@@ -1979,12 +1980,16 @@
           display: flex;
           flex-direction: column;
           gap: 12px;
+          width: 100%;
+          box-sizing: border-box;
         }
 
         .group-row {
           display: flex;
           align-items: center;
           gap: 16px;
+          width: 100%;
+          box-sizing: border-box;
         }
 
         .rank-label {
@@ -1998,8 +2003,10 @@
 
         .group-slot {
           flex: 1;
+          min-width: 0;
           position: relative;
           border-radius: 12px;
+          overflow: hidden;
         }
 
         .team-card {
@@ -2017,6 +2024,8 @@
           width: 100%;
           position: relative;
           overflow: hidden;
+          box-sizing: border-box;
+          height: 64px;
         }
 
         .team-card:hover {
@@ -2029,6 +2038,9 @@
           align-items: center;
           gap: 12px;
           z-index: 1;
+          min-width: 0;
+          flex: 1;
+          overflow: hidden;
         }
 
         .team-flag-img {
@@ -2043,6 +2055,10 @@
           font-weight: 600;
           font-size: 15px;
           font-family: "Inter", sans-serif;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          min-width: 0;
         }
 
         .drag-handle {
@@ -2238,14 +2254,15 @@
 @media (min-width: 1024px) {
   .fifa-desktop-layout {
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     padding: 0 40px;
-    max-width: 100%;
+    width: 100%;
+    max-width: none;
     margin: 0 auto;
   }
   .fifa-main-content {
     width: 100%;
-    max-width: 1600px;
+    max-width: none;
   }
   .fifa-side-content {
     width: 100%;
@@ -2293,11 +2310,14 @@
   .groups-container {
     gap: 32px;
     padding: 16px 0;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    max-width: 100%;
   }
   .group-card {
     padding: 32px;
     border-radius: 24px;
+    min-height: 380px;
   }
   .group-header {
     font-size: 26px;
@@ -2321,6 +2341,7 @@
   .team-card {
     padding: 16px 20px;
     border-radius: 16px;
+    height: 72px;
   }
 
   /* Leaderboard */
@@ -2371,8 +2392,119 @@
 }
 
 /* =========================================================
-   Tournament Awards Section Override
+   Tournament Awards Section
    ========================================================= */
+.awards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  padding: 16px 0;
+  width: 100%;
+}
+
+.award-card {
+  background: rgba(20, 20, 20, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+  transition: all 0.4s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+}
+
+.award-card:hover {
+  background: rgba(30, 30, 30, 0.7);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  transform: translateY(-4px);
+}
+
+.award-icon-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px 20px;
+  gap: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.award-emoji {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.award-title {
+  font-size: 18px;
+  color: #fff;
+  letter-spacing: 0.08em;
+}
+
+.award-subtitle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.award-input-area {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.award-selected-player {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 14px 16px;
+  gap: 12px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.award-player-name {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--fifa-gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.award-clear-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.6);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.award-clear-btn:hover {
+  background: rgba(255, 82, 82, 0.2);
+  border-color: rgba(255, 82, 82, 0.4);
+  color: #ff5252;
+}
+
 .award-input-override {
   cursor: text !important;
   font-family: "Inter", sans-serif;
@@ -2380,6 +2512,7 @@
   font-size: 14px;
   outline: none;
   width: 100%;
+  height: auto !important;
 }
 .award-input-override::placeholder {
   color: rgba(255, 255, 255, 0.4);
@@ -2389,6 +2522,22 @@
   border-color: var(--fifa-gold) !important;
   background: rgba(0, 0, 0, 0.6) !important;
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2) !important;
+}
+
+@media (min-width: 1024px) {
+  .awards-container {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 32px;
+  }
+  .award-emoji {
+    font-size: 48px;
+  }
+  .award-title {
+    font-size: 22px;
+  }
+  .award-player-name {
+    font-size: 18px;
+  }
 }
 
 /* =========================================================
@@ -2539,4 +2688,52 @@
 .fifa-nav-item {
   color: #FFD700 !important; /* Gold color */
   animation: gold-pulse 2s infinite ease-in-out;
+}
+
+/* =========================================================
+   Premium Banners & Buttons
+   ========================================================= */
+
+.premium-glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  transition: all 0.4s ease;
+}
+
+.premium-glass-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.locked-banner-glow {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.premium-proceed-btn {
+  background: #ffffff;
+  color: #000;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 16px;
+  cursor: pointer;
+  font-family: "Montserrat", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.premium-proceed-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2);
+  background: #f0f0f0;
 }

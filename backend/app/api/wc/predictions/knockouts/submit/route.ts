@@ -1,7 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+const supabaseUrl = process.env.SUPABASE_URL as string;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+    return new NextResponse(null, { status: 200, headers: corsHeaders });
+}
 
 export async function POST(req: Request) {
     try {
@@ -10,7 +22,7 @@ export async function POST(req: Request) {
 
         // Basic validation
         if (!user_id || !predictions || !predictions.champion_id) {
-            return NextResponse.json({ success: false, error: "Missing required prediction data." }, { status: 400 });
+            return NextResponse.json({ success: false, error: "Missing required prediction data." }, { status: 400, headers: corsHeaders });
         }
 
         // Upsert into our new table
@@ -29,10 +41,10 @@ export async function POST(req: Request) {
 
         if (error) throw error;
 
-        return NextResponse.json({ success: true, message: "Knockout predictions saved successfully!" });
+        return NextResponse.json({ success: true, message: "Knockout predictions saved successfully!" }, { headers: corsHeaders });
 
     } catch (error: any) {
         console.error("Submit Error:", error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
     }
 }

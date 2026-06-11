@@ -6,7 +6,7 @@ export function MatchNode({ match, onSelectWinner, disabled, isFinal }) {
 
   const handleSelect = (team) => {
     if (disabled || !team1 || !team2) return;
-    if (team.name.startsWith('TBD')) return;
+    if (!team.name || team.name.startsWith('TBD')) return;
     onSelectWinner(id, team);
   };
 
@@ -16,7 +16,7 @@ export function MatchNode({ match, onSelectWinner, disabled, isFinal }) {
   };
 
   const renderTeam = (team) => {
-    if (!team || team.name.startsWith('TBD')) {
+    if (!team || !team.name || team.name.startsWith('TBD')) {
       return (
         <div className="mn-team tbd">
           <div className="mn-flag-placeholder" />

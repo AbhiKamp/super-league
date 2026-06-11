@@ -1,14 +1,26 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+const supabaseUrl = process.env.SUPABASE_URL as string;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+    return new NextResponse(null, { status: 200, headers: corsHeaders });
+}
 
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const user_id = searchParams.get('user_id');
 
-        if (!user_id) return NextResponse.json({ success: false, error: "User ID required" }, { status: 400 });
+        if (!user_id) return NextResponse.json({ success: false, error: "User ID required" }, { status: 400, headers: corsHeaders });
 
         // 1. Fetch saved predictions
         const { data: savedBracket, error } = await supabase
@@ -18,7 +30,7 @@ export async function GET(req: Request) {
             .single();
 
         if (error || !savedBracket) {
-            return NextResponse.json({ success: false, error: "No knockout predictions found." }, { status: 404 });
+            return NextResponse.json({ success: false, error: "No knockout predictions found for this user." }, { status: 404, headers: corsHeaders });
         }
 
         // 2. We must regenerate the base R32 bracket so the UI knows how to draw the starting positions!
@@ -52,9 +64,9 @@ export async function GET(req: Request) {
                     champion_id: savedBracket.champion_id
                 }
             }
-        });
+        }, { headers: corsHeaders });
 
     } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
     }
 }
