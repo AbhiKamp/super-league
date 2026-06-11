@@ -433,7 +433,9 @@ useEffect(() => {
       if (res.ok && json.success) {
         alert("Bracket Predictions Submitted Successfully!");
         setIsLocked(true); 
-        if (onBack) onBack();
+        if (onBack) {
+  onBack(true); // indicate that knockout predictions were just submitted
+}
       } else {
         throw new Error(json.error || "Submission failed");
       }

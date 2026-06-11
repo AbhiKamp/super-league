@@ -647,8 +647,18 @@ useEffect(() => {
   }
 
   if (predictionPhase === 'knockouts') {
-    return <KnockoutBracket onBack={() => navigate('/wc')} />;
-  }
+  return (
+    <KnockoutBracket
+      onBack={(refresh = false) => {
+        navigate('/wc');
+
+        if (refresh) {
+          window.location.reload();
+        }
+      }}
+    />
+  );
+}
 
   return (
     <div className="fifa-prediction-page" onClick={handlePageClick}>
