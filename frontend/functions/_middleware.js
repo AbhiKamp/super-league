@@ -2,8 +2,10 @@ class MetaTagRewriter {
     constructor(tags) {
         this.tags = tags;
     }
+
     element(element) {
         const property = element.getAttribute("property") || element.getAttribute("name");
+
         if (property === "og:title" || property === "twitter:title") {
             element.setAttribute("content", this.tags.title);
         }
@@ -27,16 +29,19 @@ export async function onRequest(context) {
     if (!contentType.includes("text/html")) return response;
 
     const IMAGE_BASE = "https://pub-5fcbf3326b604a8284068a24252f1585.r2.dev";
+
+    // Base fallback tags
     let currentTags = {
         title: "Super League - IIIT Kottayam",
-        description: "Welcome to the Super League at IIIT Kottayam!",
+        description: "Official portal for The Super League at IIIT Kottayam. Access match schedules, recent results, and league announcements.",
         image: `${IMAGE_BASE}/home.png`
     };
 
+    // Dynamic Newsletter Handling
     if (articleId) {
         try {
             const supabaseResponse = await fetch(
-                `${env.SUPABASE_URL}/rest/v1/newsletter?id=eq.${articleId}&select=image_url`,
+                `${env.SUPABASE_URL}/rest/v1/newsletter?id=eq.${articleId}&select=title,summary,image_url`,
                 {
                     headers: {
                         apikey: env.SUPABASE_ANON_KEY,
@@ -44,23 +49,42 @@ export async function onRequest(context) {
                     }
                 }
             );
+
             if (supabaseResponse.ok) {
                 const data = await supabaseResponse.json();
-                if (data?.[0]?.image_url) {
-                    currentTags.title = "Newsletter | Super League";
-                    currentTags.image = data[0].image_url;
+                if (data?.[0]) {
+                    currentTags.title = data[0].title || "Newsletter | Super League";
+                    currentTags.description = data[0].summary || currentTags.description;
+                    if (data[0].image_url) {
+                        currentTags.image = data[0].image_url;
+                    }
                 }
             }
         } catch (err) {
             console.error("Supabase fetch failed:", err);
         }
-    } else if (["/", "/fantasy", "/wc", "/matches", "/standings", "/clubs", "/statistics", "/legends", "/rules"].includes(path)) {
+    }
+    // Static Route Handling
+    else if (["/", "/fantasy", "/wc", "/matches", "/standings", "/clubs", "/statistics", "/legends", "/rules"].includes(path)) {
         const filename = path === "/" ? "home" : path.slice(1);
         const pageName = path === "/" ? "Home" : path.slice(1).charAt(0).toUpperCase() + path.slice(2);
+
+        const descriptions = {
+            "/": "Official portal for The Super League at IIIT Kottayam. Access match schedules, recent results, and league announcements.",
+            "/fantasy": "Predict match scores, winners, and top scorers.",
+            "/wc": "[NOW LIVE] World Cup Fantasy bracket. Predict group stage standings and complete the interactive knockout bracket through to the final.",
+            "/matches": "Official fixtures, live scores, and historical match data.",
+            "/standings": "Current team standings, points table, and goal differences.",
+            "/clubs": "Team rosters, squad details, and individual FUT profiles.",
+            "/statistics": "Comprehensive player and team statistics.",
+            "/rules": "Official tournament regulations and fantasy scoring guidelines.",
+            "/legends": "Hall of fame and historical records of The Super League."
+        };
+
         currentTags.title = `${pageName} | Super League`;
         currentTags.image = `${IMAGE_BASE}/${filename}.png`;
+        currentTags.description = descriptions[path] || currentTags.description;
     }
 
     return new HTMLRewriter().on("meta", new MetaTagRewriter(currentTags)).transform(response);
 }
-

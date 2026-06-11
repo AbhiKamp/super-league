@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, develop]
   schedule:
-    - cron: '0 0 * * *' # Added missing 5th digit
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Using current LTS
+          node-version: '20'
 
       - name: 📦 Install Dependencies
         working-directory: ./frontend
@@ -41,4 +41,3 @@ jobs:
           aws s3 sync ./screenshots s3://${{ secrets.R2_BUCKET_NAME }} \
             --endpoint-url https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com \
             --delete
-

@@ -22,12 +22,15 @@ const routes = ['', 'fantasy', 'wc', 'matches', 'standings', 'clubs', 'statistic
 
         console.log(`📸 Capturing ${url}`);
 
-        await page.goto(url, { waitUntil: 'networkidle' });
-        await page.waitForTimeout(2000); // Wait for animations
-        await page.screenshot({ path: `./screenshots/${filename}.png` });
+        try {
+            await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+            await page.waitForTimeout(2000); // Allow frontend animations to settle
+            await page.screenshot({ path: `./screenshots/${filename}.png` });
+        } catch (error) {
+            console.error(`❌ Failed to capture ${url}:`, error.message);
+        }
     }
 
     await browser.close();
     console.log('✅ Screenshots captured!');
 })();
-
