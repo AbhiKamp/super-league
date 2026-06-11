@@ -147,90 +147,85 @@ export function KnockoutBracket({ onBack }) {
     return () => window.removeEventListener('resize', calculateLines);
   }, [bracketState]);
 
-  useEffect(() => {
-    // Load data from localStorage
-    try {
-      const savedGroups = localStorage.getItem('groupPredictions');
-      const savedThirds = localStorage.getItem('selectedThirdPlace');
-      
-      // Load any existing knockout progress
-      const savedKnockouts = localStorage.getItem('knockoutPredictions');
-
-      if (!savedGroups || !savedThirds) {
-        // Redirect to main prediction page if they haven't finished previous steps
-        if (onBack) onBack();
-        return;
-      }
-
-      if (savedKnockouts) {
-        setBracketState(JSON.parse(savedKnockouts));
-      } else {
-        // Initialize bracket
-        const groupStandings = JSON.parse(savedGroups);
-        const selectedThirdGroups = JSON.parse(savedThirds);
-
-        // We need the full team objects in groupStandings
-        // Wait, groupPredictions in localStorage currently saves {position, team: string}
-        // Actually, in FifaPrediction.jsx, we save legacyPredictions which is just {position, team}
-        // Let's see how FifaPrediction loads it... we might need to fetch the teams again
-        // Or if the full object is saved, we use it. For now, we will fetch /wc/teams to map them.
+    useEffect(() => {
+    const loadBracketData = async () => {
+      try {
+        const savedGroups = localStorage.getItem('groupPredictions');
+        const savedThirds = localStorage.getItem('selectedThirdPlace');
         
-        const generateKnockouts = async () => {
-          try {
-            const { data: { session } } = await supabase.auth.getSession();
+        if (!savedGroups || !savedThirds) {
+          if (onBack) onBack(); return;
+        }
+
+        const groupPredictions = JSON.parse(savedGroups);
+        const { data: { session } } = await supabase.auth.getSession();
+
+        // 1. FETCH MASTER TEAMS TO GET REAL IMAGES AND UUIDS
+        let masterTeams = [];
+        try {
+          const teamsRes = await fetch(`${import.meta.env.VITE_API_URL}/wc/teams`);
+          const teamsJson = await teamsRes.json();
+          if (teamsJson.success) masterTeams = teamsJson.data;
+        } catch (err) { console.error("Failed to fetch teams"); }
+
+        // 2. HELPER TO FORMAT DATA WITH IMAGES AND UUIDS
+        const resolveTeam = (rawTeam) => {
+          if (!rawTeam) return null;
+          const code = rawTeam.position_code;
+          if (!code) return null;
+
+          const position = parseInt(code.charAt(0), 10);
+          const groupLetter = code.charAt(1);
+
+          if (groupPredictions[groupLetter] && groupPredictions[groupLetter][position - 1]) {
+            const teamName = groupPredictions[groupLetter][position - 1].team || groupPredictions[groupLetter][position - 1].name;
+            const dbTeam = masterTeams.find(t => t.name === teamName);
             
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/wc/predictions/knockouts/generate`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session?.access_token}`
-              },
-              body: JSON.stringify({
-                user_id: user.id,
-                advancing_third_place_groups: selectedThirdGroups
-              })
-            });
-
-            const json = await res.json();
-            
-            if (!json.success) {
-              console.error("API Error:", json.error);
-              alert("Failed to generate knockout bracket: " + json.error);
-              if (onBack) onBack();
-              return;
-            }
-
-            const r32Matches = json.data.round_of_32.map((match, i) => ({
-              id: `m${i+1}`,
-              nextMatchId: `m${Math.floor(i/2) + 17}`,
-              team1: match.team1,
-              team2: match.team2,
-              winnerId: null
-            }));
-
-            const emptyKnockouts = generateEmptyKnockouts();
-
-            setBracketState({
-              roundOf32: r32Matches,
-              roundOf16: emptyKnockouts.roundOf16,
-              quarterFinals: emptyKnockouts.quarterFinals,
-              semiFinals: emptyKnockouts.semiFinals,
-              final: emptyKnockouts.final
-            });
-          } catch (e) {
-            console.error("Generation failed:", e);
-            alert("Failed to generate bracket.");
-            if (onBack) onBack();
+            // Give back the formatted data!
+            if (dbTeam) return { id: dbTeam.id, name: dbTeam.name, logo_url: dbTeam.logo_url };
+            return { id: teamName, name: teamName, logo_url: '' };
           }
+          return { id: `placeholder-${code}`, name: code, logo_url: '' };
         };
 
-        generateKnockouts();
+        // 3. GET GENERATED BRACKET STRUCTURE FROM BACKEND
+        const genRes = await fetch(`${import.meta.env.VITE_API_URL}/wc/predictions/knockouts/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ user_id: user?.id, advancing_third_place_groups: JSON.parse(savedThirds) })
+        });
+
+        const genJson = await genRes.json();
+        if (!genJson.success) { alert("Generation failed"); if (onBack) onBack(); return; }
+
+        // 4. MAP THE GENERATED BRACKET WITH OUR FORMATTED TEAMS
+        const r32Matches = genJson.data.round_of_32.map((match, i) => ({
+          id: `m${i+1}`,
+          nextMatchId: `m${Math.floor(i/2) + 17}`,
+          team1: resolveTeam(match.team1),
+          team2: resolveTeam(match.team2),
+          winnerId: null
+        }));
+
+        const emptyKnockouts = generateEmptyKnockouts();
+        const cleanState = {
+          roundOf32: r32Matches,
+          roundOf16: emptyKnockouts.roundOf16,
+          quarterFinals: emptyKnockouts.quarterFinals,
+          semiFinals: emptyKnockouts.semiFinals,
+          final: emptyKnockouts.final
+        };
+
+        setBracketState(cleanState);
+
+      } catch (e) {
+        console.error("Critical error:", e);
+        if (onBack) onBack();
       }
-    } catch (e) {
-      console.error(e);
-      if (onBack) onBack();
-    }
-  }, [onBack]);
+    };
+
+    loadBracketData();
+  }, [user?.id, onBack]);
 
   const handleSelectWinner = (matchId, winnerTeam) => {
     // Trigger fireworks if the final match is selected
@@ -296,24 +291,58 @@ export function KnockoutBracket({ onBack }) {
     }
   };
 
-  const submitKnockouts = async () => {
-    // Check if final has a winner
-    if (!bracketState.final[0].winnerId) {
-      alert("Please complete the entire bracket before submitting!");
+    const submitKnockouts = async () => {
+    const finalWinnerId = bracketState.final[0].winnerId;
+    
+    // Guard against sending string names instead of UUIDs
+    if (!finalWinnerId || finalWinnerId.length < 15) {
+      alert("Please complete the bracket. (If bracket is stuck, refresh to reload images)");
       return;
     }
-    alert("Bracket Predictions Submitted Successfully! (Mock)");
-    if (onBack) onBack();
-  };
 
-  if (!bracketState) {
-    return (
-      <div className="kb-page">
-        <div className="bg-canvas"><div className="bg-ballgrid"></div></div>
-        <div className="kb-loading font-fifa">Loading Bracket...</div>
-      </div>
-    );
-  }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const savedThirds = localStorage.getItem('selectedThirdPlace');
+      const advancingThirds = savedThirds ? JSON.parse(savedThirds) : [];
+      
+      const payload = {
+        user_id: user?.id,
+        advancing_third_place: advancingThirds,
+        advancing_third_place_groups: advancingThirds,
+        predictions: {
+          round_of_16: bracketState.roundOf16,
+          quarter_finals: bracketState.quarterFinals,
+          semi_finals: bracketState.semiFinals,
+          final: bracketState.final,
+          champion_id: finalWinnerId
+        },
+        round_of_16: bracketState.roundOf16,
+        quarter_finals: bracketState.quarterFinals,
+        semi_finals: bracketState.semiFinals,
+        final: bracketState.final,
+        champion_id: finalWinnerId
+      };
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/wc/predictions/knockouts/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+      
+      if (res.ok && json.success) {
+        alert("Bracket Predictions Submitted Successfully!");
+        localStorage.setItem('knockoutPredictions', JSON.stringify(bracketState));
+        if (onBack) onBack();
+      } else {
+        throw new Error(json.error || "Submission failed");
+      }
+    } catch (err) {
+      console.error("Failed to submit bracket:", err);
+      alert("Failed to sync with server. Your progress has been saved locally.");
+    }
+  };
 
   return (
     <div className="kb-page">
