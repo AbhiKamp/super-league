@@ -36,8 +36,10 @@ function ProtectedRoute({ children }) {
   
   if (!profile?.nickname || !profile?.team_flair_id) return <Onboarding />;
 
+  const isWc = location.pathname === '/wc';
+
   return (
-    <div className="min-h-screen pt-24 pb-12 px-4 sm:px-6 mx-auto max-w-7xl">
+    <div className={`min-h-screen pt-24 pb-12 px-4 sm:px-6 mx-auto ${isWc ? 'max-w-full' : 'max-w-7xl'}`}>
       <TopNavbar />
       <main className="animate-in fade-in duration-500">{children}</main>
     </div>

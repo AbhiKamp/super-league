@@ -14,13 +14,23 @@ const R32_HOME_SLOTS = [
     "1F", "1G", "1H", "1I", "1J", "1K", "2K", "1L"
 ];
 
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+    return new NextResponse(null, { status: 200, headers: corsHeaders });
+}
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { user_id, advancing_third_place_groups } = body;
 
         if (!user_id || !advancing_third_place_groups || advancing_third_place_groups.length !== 8) {
-            return NextResponse.json({ success: false, error: "Invalid payload. Expected 8 third-place groups." }, { status: 400 });
+            return NextResponse.json({ success: false, error: "Invalid payload. Expected 8 third-place groups." }, { status: 400, headers: corsHeaders });
         }
 
         // 1. Fetch the user's GROUP STAGE predictions
@@ -65,10 +75,10 @@ export async function POST(req: Request) {
             };
         });
 
-        return NextResponse.json({ success: true, data: { round_of_32: roundOf32 } });
+        return NextResponse.json({ success: true, data: { round_of_32: roundOf32 } }, { headers: corsHeaders });
 
     } catch (error: any) {
         console.error("Generator Error:", error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
     }
 }

@@ -6,50 +6,19 @@ import { AutocompleteInput } from '../components/AutocompleteInput';
 import { KnockoutBracket } from './KnockoutBracket';
 import './FifaPrediction.css';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export function FifaPrediction() {
   const { user, profile, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const goBack=useCallback(()=>{
     navigate(-1);
   },[navigate]);
 
-  if (!user) {
-    return (
-      <div className="fifa-prediction-page flex items-center justify-center min-h-[80vh] text-center p-6">
-        <div className="bg-black/60 border border-white/10 rounded-2xl p-10 max-w-md backdrop-blur-md shadow-2xl">
-           <h2 className="text-3xl font-fifa-italic text-white mb-4">ACCESS REQUIRED</h2>
-           <p className="text-zinc-400 mb-8 font-medium">You must be signed in to access the FIFA Fantasy League and submit predictions.</p>
-           <button 
-             onClick={signInWithGoogle} 
-             className="w-full bg-[var(--fifa-cyan)] text-black px-8 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-white transition-colors"
-           >
-             Sign in with Google
-           </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Guard 2: Logged in, but missing World Cup Flair
-  if (user && !profile?.wc_team_flair) {
-    return (
-      <div className="fifa-prediction-page flex items-center justify-center min-h-[80vh] text-center p-6">
-        <div className="bg-black/60 border border-white/10 rounded-2xl p-10 max-w-md backdrop-blur-md shadow-2xl">
-           <h2 className="text-3xl font-fifa-italic text-[var(--fifa-gold)] mb-4">TEAM FLAIR MISSING</h2>
-           <p className="text-zinc-400 mb-8 font-medium">You need to select your World Cup team flair in your profile before entering the arena.</p>
-           <button 
-             onClick={() => navigate('/profile')} 
-             className="w-full bg-[var(--fifa-gold)] text-black px-8 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-white transition-colors"
-           >
-             Go to Profile
-           </button>
-        </div>
-      </div>
-    );
-  }
+  // The user guards have been removed to allow guest predictions!
+  // We will check for auth during handleSubmit instead.
 
   const [flagAnimationEnabled, setFlagAnimationEnabled] = useState(() => {
     try {
@@ -76,6 +45,15 @@ export function FifaPrediction() {
   const [showThirdPlaceSection, setShowThirdPlaceSection] = useState(false);
   const [hasSelectedThirdPlace, setHasSelectedThirdPlace] = useState(false);
   const [selectedThirdPlaceGroups, setSelectedThirdPlaceGroups] = useState([]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('phase') === 'knockouts') {
+      setPredictionPhase('knockouts');
+    } else {
+      setPredictionPhase('groups');
+    }
+  }, [location.search]);
 
   useEffect(() => {
     try {
@@ -109,11 +87,30 @@ export function FifaPrediction() {
     }
   };
 
+  const goToKnockouts = () => {
+    if (groupStandings) {
+      try {
+        const legacyPredictions = {};
+        Object.keys(groupStandings).forEach(group => {
+          legacyPredictions[group] = groupStandings[group].map((team, index) => ({
+            position: index + 1,
+            team: team.name
+          }));
+        });
+        localStorage.setItem('groupPredictions', JSON.stringify(legacyPredictions));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    navigate('/wc?phase=knockouts');
+    window.scrollTo(0, 0);
+  };
+
   const handleProceedToKnockouts = () => {
     if (selectedThirdPlaceGroups.length === 8) {
       localStorage.setItem('selectedThirdPlace', JSON.stringify(selectedThirdPlaceGroups));
       setHasSelectedThirdPlace(true);
-      setPredictionPhase('knockouts');
+      goToKnockouts();
     }
   };
   useEffect(() => {
@@ -235,6 +232,38 @@ export function FifaPrediction() {
     
     loadUserPredictions();
   }, [user, dbGroups]);
+
+  // Load award predictions from DB
+  useEffect(() => {
+    if (!user) return;
+    
+    async function loadAwardPredictions() {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/wc/predictions/awards?user_id=${user.id}`);
+        const json = await res.json();
+        
+        if (json.success && json.data) {
+          const d = json.data;
+          if (d.golden_boot?.name) {
+            setGoldenBoot(d.golden_boot.name);
+            setGoldenBootId(d.golden_boot.id);
+          }
+          if (d.golden_glove?.name) {
+            setGoldenGlove(d.golden_glove.name);
+            setGoldenGloveId(d.golden_glove.id);
+          }
+          if (d.golden_ball?.name) {
+            setGoldenBall(d.golden_ball.name);
+            setGoldenBallId(d.golden_ball.id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load award predictions:', err);
+      }
+    }
+    
+    loadAwardPredictions();
+  }, [user]);
 
   const allTeams = dbGroups ? Object.values(dbGroups).flat() : [];
   const userTeam = profile?.wc_team_flair ? allTeams.find(t => t.name === profile.wc_team_flair) : null;
@@ -408,8 +437,37 @@ export function FifaPrediction() {
   };
 
   const handleSubmit = async () => {
+    // 1. Always save to local storage FIRST so we don't lose state on OAuth redirect
+    try {
+      const legacyPredictions = {};
+      Object.keys(groupStandings).forEach(group => {
+        legacyPredictions[group] = groupStandings[group].map((team, index) => ({
+          position: index + 1,
+          team: team.name
+        }));
+      });
+      localStorage.setItem('groupPredictions', JSON.stringify(legacyPredictions));
+      
+      localStorage.setItem('fifaGoldenBoot', goldenBoot);
+      if (goldenBootId) localStorage.setItem('fifaGoldenBootId', goldenBootId);
+      localStorage.setItem('fifaGoldenGlove', goldenGlove);
+      if (goldenGloveId) localStorage.setItem('fifaGoldenGloveId', goldenGloveId);
+      localStorage.setItem('fifaGoldenBall', goldenBall);
+      if (goldenBallId) localStorage.setItem('fifaGoldenBallId', goldenBallId);
+    } catch (e) {
+      console.error("Could not save predictions locally:", e);
+    }
+
+    // 2. Check for User Auth
     if (!user) {
-      alert("Please sign in to submit predictions!");
+      alert("Please sign in to save your predictions! We will redirect you to login.");
+      signInWithGoogle();
+      return;
+    }
+
+    if (!profile?.wc_team_flair) {
+      alert("Please select your World Cup team flair in your profile before submitting.");
+      navigate('/profile');
       return;
     }
 
@@ -489,26 +547,6 @@ export function FifaPrediction() {
       setShowThirdPlaceModal(true);
     }
 
-    // Still save to local storage as fallback
-    try {
-      const legacyPredictions = {};
-      Object.keys(groupStandings).forEach(group => {
-        legacyPredictions[group] = groupStandings[group].map((team, index) => ({
-          position: index + 1,
-          team: team.name
-        }));
-      });
-      localStorage.setItem('groupPredictions', JSON.stringify(legacyPredictions));
-      
-      localStorage.setItem('fifaGoldenBoot', goldenBoot);
-      if (goldenBootId) localStorage.setItem('fifaGoldenBootId', goldenBootId);
-      localStorage.setItem('fifaGoldenGlove', goldenGlove);
-      if (goldenGloveId) localStorage.setItem('fifaGoldenGloveId', goldenGloveId);
-      localStorage.setItem('fifaGoldenBall', goldenBall);
-      if (goldenBallId) localStorage.setItem('fifaGoldenBallId', goldenBallId);
-    } catch (e) {
-      console.error("Could not save predictions:", e);
-    }
   };
 
   useEffect(() => {
@@ -602,7 +640,7 @@ export function FifaPrediction() {
   }
 
   if (predictionPhase === 'knockouts') {
-    return <KnockoutBracket onBack={() => setPredictionPhase('groups')} />;
+    return <KnockoutBracket onBack={() => navigate('/wc')} />;
   }
 
   return (
@@ -701,78 +739,40 @@ export function FifaPrediction() {
           </h1>
         </header>
 
-        {/* Knockout Stage Proceed Button */}
-        {isLocked && !hasSelectedThirdPlace && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-            <button 
-              onClick={() => {
-                setShowThirdPlaceSection(true);
-                setTimeout(() => {
-                  document.getElementById('third-place-section')?.scrollIntoView({ behavior: 'smooth' });
-                }, 100);
-              }}
-              style={{
-                background: '#fff', color: '#000', border: 'none', padding: '16px 32px', 
-                borderRadius: '8px', fontWeight: '800', fontSize: '18px', cursor: 'pointer', 
-                fontFamily: '"Montserrat", sans-serif', textTransform: 'uppercase',
-                boxShadow: '0 4px 15px rgba(255,255,255,0.2)'
-              }}
-            >
-              Proceed to round of 32
-            </button>
-          </div>
-        )}
-
-        {isLocked && hasSelectedThirdPlace && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-            <button 
-              onClick={() => setPredictionPhase('knockouts')}
-              style={{
-                background: '#fff', color: '#000', border: 'none', padding: '16px 32px', 
-                borderRadius: '8px', fontWeight: '800', fontSize: '18px', cursor: 'pointer', 
-                fontFamily: '"Montserrat", sans-serif', textTransform: 'uppercase',
-                boxShadow: '0 4px 15px rgba(255,255,255,0.2)'
-              }}
-            >
-              Predict Knockout Stages
-            </button>
-          </div>
-        )}
-
         {/* Top Dash Sections */}
         <div className="user-dash-top">
           
           {/* Standings/Login Card */}
           {user ? (
-                <div className="bg-black/30 border border-white/10 rounded-2xl p-5 sm:p-8 flex items-center justify-between shadow-lg backdrop-blur-md transition-all hover:bg-black/50" style={{ flex: 1, width: '100%' }}>
-                  <div className="flex items-center gap-3 sm:gap-6">
+                <div className="premium-glass-card" style={{ flex: 1, width: '100%', padding: '20px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
                     
                     {/* Rank */}
-                    <div className="flex flex-col items-center justify-center mr-2">
-                      <span className="text-zinc-500 text-[9px] font-bold tracking-widest uppercase mb-1">Rank</span>
-                      <span className="text-2xl font-fifa text-white leading-none">{profile?.rank || '-'}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', fontWeight: '800', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '4px' }}>Rank</span>
+                      <span className="font-fifa" style={{ fontSize: '28px', color: '#fff', lineHeight: '1' }}>{profile?.rank || '-'}</span>
                     </div>
 
                     {/* Avatar */}
-                    <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-white/5 flex items-center justify-center shadow-md">
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', overflow: 'hidden', flexShrink: '0', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
                       {userTeam ? (
                         <img 
                           src={userTeam.logo_url} 
                           alt={userTeam.name}
-                          className="w-full h-full object-cover bg-white"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#fff' }}
                         />
                       ) : (
-                        <span className="text-[10px] font-bold text-zinc-500">YOU</span>
+                        <span style={{ fontSize: '11px', fontWeight: '800', color: 'rgba(255,255,255,0.5)' }}>YOU</span>
                       )}
                     </div>
                     
                     {/* Info */}
-                    <div className="text-left flex flex-col justify-center">
-                      <p className="text-lg font-fifa text-white leading-none tracking-wide mb-1">
+                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <p className="font-fifa" style={{ fontSize: '20px', color: '#fff', lineHeight: '1', letterSpacing: '0.05em', marginBottom: '4px' }}>
                         {profile?.nickname || 'Predictor'}
                       </p>
                       {profile?.wc_team_flair && (
-                        <span className="text-[10px] text-zinc-400 font-medium tracking-wide flex items-center gap-1.5 uppercase">
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', fontWeight: '600', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                           {profile.wc_team_flair}
                         </span>
                       )}
@@ -780,11 +780,11 @@ export function FifaPrediction() {
                   </div>
                   
                   {/* Points */}
-                  <div className="text-right flex flex-col items-end justify-center">
-                    <div className="text-2xl font-fifa text-white leading-none mb-1">
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
+                    <div className="font-fifa" style={{ fontSize: '32px', color: '#fff', lineHeight: '1', marginBottom: '4px' }}>
                       {leaderboard.find(p => p.user_profiles?.nickname === profile?.nickname)?.points || 0}
                     </div>
-                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none">
+                    <p style={{ fontSize: '10px', fontWeight: '800', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', lineHeight: '1' }}>
                       Points
                     </p>
                   </div>
@@ -827,7 +827,7 @@ export function FifaPrediction() {
         <div className="fifa-desktop-layout">
           <div className="fifa-main-content">
 
-        <section className="section reveal" id="groups">
+        <section className="section" id="groups">
           <div className="sh" style={{ marginBottom: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
             <h2 className="font-fifa-italic" style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', color: 'white', lineHeight: '1.2', letterSpacing: '0.05em' }}>
               PREDICT THE GROUP <span style={{ color: 'var(--fifa-gold)' }}>STAGES</span>
@@ -837,40 +837,43 @@ export function FifaPrediction() {
             </p>
           </div>
           {isLocked && (
-            <div style={{
-              background: 'rgba(0, 0, 0, 0.4)',
-              border: '1px solid var(--fifa-gold)',
-              padding: '16px 24px',
-              borderRadius: '12px',
-              marginBottom: '32px',
+            <div className="premium-glass-card" style={{
+              padding: '24px 32px',
+              marginBottom: '40px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '8px',
-              maxWidth: '600px',
-              margin: '0 auto 32px auto',
-              backdropFilter: 'blur(8px)'
+              gap: '12px',
+              maxWidth: '650px',
+              margin: '0 auto 40px auto'
             }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--fifa-gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-              </svg>
-              <span className="font-fifa" style={{ color: 'var(--fifa-gold)', fontSize: '20px', letterSpacing: '1px' }}>
-                PREDICTIONS LOCKED
-              </span>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', margin: '0 0 16px 0', textAlign: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', textAlign: 'center' }}>
+                <span className="font-fifa" style={{ color: 'var(--fifa-gold)', fontSize: '24px', letterSpacing: '2px', textAlign: 'center', lineHeight: '1.2' }}>
+                  PREDICTIONS LOCKED
+                </span>
+              </div>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '15px', margin: '0 0 16px 0', textAlign: 'center', fontWeight: '500' }}>
                 {isPastDeadline 
                   ? "The deadline for Group Stage predictions has officially passed." 
                   : "Predictions already made for the Group Stage. Proceed to the knockouts!"}
               </p>
-              {hasSelectedThirdPlace && (
+              
+              {!hasSelectedThirdPlace ? (
                 <button 
-                  onClick={() => setPredictionPhase('knockouts')}
-                  style={{
-                    background: 'var(--fifa-cyan)', color: '#000', border: 'none', padding: '12px 24px', 
-                    borderRadius: '8px', fontWeight: '800', fontSize: '16px', cursor: 'pointer', 
-                    fontFamily: '"Montserrat", sans-serif', textTransform: 'uppercase'
+                  onClick={() => {
+                    setShowThirdPlaceSection(true);
+                    setTimeout(() => {
+                      document.getElementById('third-place-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
                   }}
+                  className="premium-proceed-btn"
+                >
+                  Proceed to round of 32
+                </button>
+              ) : (
+                <button 
+                  onClick={goToKnockouts}
+                  className="premium-proceed-btn"
                 >
                   Predict Knockout Stages
                 </button>
@@ -969,69 +972,119 @@ export function FifaPrediction() {
             </h2>
           </div>
 
-          <div className="groups-container" style={{ marginBottom: '40px' }}>
-            <div className="group-card">
-              <div className="group-header-row">
-                <div className="group-header">GOLDEN BOOT</div>
+          <div className="awards-container" style={{ marginBottom: '40px' }}>
+            {/* Golden Boot */}
+            <div className="award-card">
+              <div className="award-icon-area">
+                <span className="award-title font-fifa">GOLDEN BOOT</span>
+                <span className="award-subtitle">Top Scorer</span>
               </div>
-              <div className="group-list">
-                <div className="group-row">
-                  <div className="group-slot advancing" style={{ pointerEvents: isLocked ? 'none' : 'auto', opacity: isLocked ? 0.7 : 1 }}>
+              <div className="award-input-area">
+                {goldenBoot ? (
+                  <div className="award-selected-player">
+                    <span className="award-player-name">{goldenBoot}</span>
+                    {!isLocked && (
+                      <button className="award-clear-btn" onClick={() => { setGoldenBoot(''); setGoldenBootId(null); }}>✕</button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ pointerEvents: isLocked ? 'none' : 'auto', opacity: isLocked ? 0.5 : 1 }}>
                     <AutocompleteInput 
-                      placeholder="Best Scorer..." 
+                      placeholder="Search for a player..." 
                       value={goldenBoot}
                       onChange={setGoldenBoot}
                       onSelect={(player) => setGoldenBootId(player.id)}
                     />
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
-            <div className="group-card">
-              <div className="group-header-row">
-                <div className="group-header">GOLDEN GLOVE</div>
+            {/* Golden Glove */}
+            <div className="award-card">
+              <div className="award-icon-area">
+                <span className="award-title font-fifa">GOLDEN GLOVE</span>
+                <span className="award-subtitle">Best Goalkeeper</span>
               </div>
-              <div className="group-list">
-                <div className="group-row">
-                  <div className="group-slot advancing" style={{ pointerEvents: isLocked ? 'none' : 'auto', opacity: isLocked ? 0.7 : 1 }}>
+              <div className="award-input-area">
+                {goldenGlove ? (
+                  <div className="award-selected-player">
+                    <span className="award-player-name">{goldenGlove}</span>
+                    {!isLocked && (
+                      <button className="award-clear-btn" onClick={() => { setGoldenGlove(''); setGoldenGloveId(null); }}>✕</button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ pointerEvents: isLocked ? 'none' : 'auto', opacity: isLocked ? 0.5 : 1 }}>
                     <AutocompleteInput 
-                      placeholder="Best Goalkeeper..." 
+                      placeholder="Search for a goalkeeper..." 
                       value={goldenGlove}
                       onChange={setGoldenGlove}
                       onSelect={(player) => setGoldenGloveId(player.id)}
                       positionFilter="GK"
                     />
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
-            <div className="group-card">
-              <div className="group-header-row">
-                <div className="group-header">GOLDEN BALL</div>
+            {/* Golden Ball */}
+            <div className="award-card">
+              <div className="award-icon-area">
+                <span className="award-title font-fifa">GOLDEN BALL</span>
+                <span className="award-subtitle">Best Player</span>
               </div>
-              <div className="group-list">
-                <div className="group-row">
-                  <div className="group-slot advancing" style={{ pointerEvents: isLocked ? 'none' : 'auto', opacity: isLocked ? 0.7 : 1 }}>
+              <div className="award-input-area">
+                {goldenBall ? (
+                  <div className="award-selected-player">
+                    <span className="award-player-name">{goldenBall}</span>
+                    {!isLocked && (
+                      <button className="award-clear-btn" onClick={() => { setGoldenBall(''); setGoldenBallId(null); }}>✕</button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ pointerEvents: isLocked ? 'none' : 'auto', opacity: isLocked ? 0.5 : 1 }}>
                     <AutocompleteInput 
-                      placeholder="Best Player..." 
+                      placeholder="Search for a player..." 
                       value={goldenBall}
                       onChange={setGoldenBall}
                       onSelect={(player) => setGoldenBallId(player.id)}
                     />
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
             
-          {!isLocked && (
-          <div className="submit-section">
-            <button className="submit-btn" id="submitBtn" onClick={handleSubmit}>
-              Submit Predictions
-            </button>
-          </div>
+          {!isLocked ? (
+            <div className="submit-section">
+              <button className="submit-btn" id="submitBtn" onClick={handleSubmit}>
+                SUBMIT PREDICTIONS
+              </button>
+            </div>
+          ) : (
+            <div className="submit-section" style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+              {!hasSelectedThirdPlace ? (
+                <button 
+                  onClick={() => {
+                    setShowThirdPlaceSection(true);
+                    setTimeout(() => {
+                      document.getElementById('third-place-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
+                  }}
+                  className="premium-proceed-btn"
+                >
+                  Proceed to round of 32
+                </button>
+              ) : (
+                <button 
+                  onClick={goToKnockouts}
+                  className="premium-proceed-btn"
+                >
+                  Predict Knockout Stages
+                </button>
+              )}
+            </div>
           )}
 
           {showThirdPlaceSection && !hasSelectedThirdPlace && (
@@ -1040,13 +1093,30 @@ export function FifaPrediction() {
                 <h2 className="font-fifa-italic" style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)', color: 'white', lineHeight: '1.2', letterSpacing: '0.05em' }}>
                   CHOOSE THE BEST THIRD PLACE <span style={{ color: 'var(--fifa-gold)' }}>TEAM</span>
                 </h2>
-                <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontWeight: '500', marginTop: '12px', fontSize: '15px', maxWidth: '500px' }}>
-                  {selectedThirdPlaceGroups.length}/8 SELECTED
-                </p>
               </div>
 
-              <div className="groups-container">
+              {/* Third Place Scoring Rules */}
+              <div className="lb-wrap" style={{ width: '100%', maxWidth: '800px', margin: '0 auto 32px', background: 'rgba(0,0,0,0.5)' }}>
+                <div className="lb-hdr" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(0, 0, 0, 0.2)', justifyContent: 'center', padding: '16px' }}>
+                  <span className="lb-hdr-t font-fifa" style={{ fontSize: '20px' }}>SCORING RULES</span>
+                </div>
+                <div className="dash-rules" style={{ padding: '20px 24px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold' }}>Correct 3rd Place Advancing:</span>
+                      <span style={{ color: '#fff', fontSize: '14px' }}><span className="rule-highlight">5 points</span> each</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', width: '100%', padding: '0 16px' }}>
                 <div className="group-card" style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
+                  <div style={{ padding: '16px 16px 0', textAlign: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontWeight: '700', margin: '0 0 16px 0', fontSize: '14px', letterSpacing: '0.1em' }}>
+                      {selectedThirdPlaceGroups.length}/8 SELECTED
+                    </p>
+                  </div>
                   <div className="group-list-container">
                     <div className="group-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', padding: '16px' }}>
                       {thirdPlaceTeams.map(({ group, team }) => {
@@ -1112,7 +1182,7 @@ export function FifaPrediction() {
                 </h2>
               </div>
 
-              <div className="groups-container">
+              <div style={{ display: 'flex', justifyContent: 'center', width: '100%', padding: '0 16px' }}>
                 <div className="group-card" style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
                   <div className="group-list-container">
                     <div className="group-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', padding: '16px' }}>

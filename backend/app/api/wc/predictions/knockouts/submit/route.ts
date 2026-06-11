@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
         // Basic validation
         if (!user_id || !predictions || !predictions.champion_id) {
-            return NextResponse.json({ success: false, error: "Missing required prediction data." }, { status: 400 });
+            return NextResponse.json({ success: false, error: "Missing required prediction data." }, { status: 400, headers: corsHeaders });
         }
 
         // Upsert into our new table
@@ -33,10 +33,10 @@ export async function POST(req: Request) {
 
         if (error) throw error;
 
-        return NextResponse.json({ success: true, message: "Knockout predictions saved successfully!" });
+        return NextResponse.json({ success: true, message: "Knockout predictions saved successfully!" }, { headers: corsHeaders });
 
     } catch (error: any) {
         console.error("Submit Error:", error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
     }
 }

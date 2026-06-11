@@ -20,16 +20,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing user_id parameter" }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { data: awardData, error } = await supabase
       .from('wc_award_predictions')
       .select('*')
       .eq('user_id', userId)
-      .single(); // We use .single() because there is only one row per user
+      .single();
 
     // PGRST116 means no rows were found (the user hasn't predicted yet), which is completely fine
     if (error && error.code !== 'PGRST116') throw error;
+    if (!awardData) return NextResponse.json({ success: true, data: null });
 
-    return NextResponse.json({ success: true, data: data || null });
+    // Fetch player names
+    const playerIds = [awardData.golden_boot_id, awardData.golden_ball_id, awardData.golden_glove_id].filter(Boolean);
+    
+    if (playerIds.length > 0) {
+      const { data: playersData } = await supabase
+        .from('wc_players')
+        .select('id, name')
+        .in('id', playerIds);
+        
+      if (playersData) {
+        awardData.golden_boot = playersData.find(p => p.id === awardData.golden_boot_id);
+        awardData.golden_ball = playersData.find(p => p.id === awardData.golden_ball_id);
+        awardData.golden_glove = playersData.find(p => p.id === awardData.golden_glove_id);
+      }
+    }
+
+    return NextResponse.json({ success: true, data: awardData });
   } catch (error) {
     console.error("Fetch Awards Error:", error);
     return NextResponse.json({ error: "Failed to fetch award predictions" }, { status: 500 });
