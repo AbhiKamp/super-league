@@ -81,10 +81,9 @@ export function Onboarding() {
     }
 
     // 2. Update local state
+    // This will trigger AuthContext to update, and ProtectedRoute will automatically 
+    // evaluate to true and seamlessly render the original requested page!
     setProfile({ ...profile, id: user.id, email: user.email, ...updatedProfile });
-    
-    // 3. THE URL RESCUE: Force them out of the ?view=onboarding URL!
-    window.location.href = '/'; 
   };
 
   return (

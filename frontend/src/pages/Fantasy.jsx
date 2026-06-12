@@ -5,6 +5,7 @@ import { FifaPrediction } from './FifaPrediction';
 import { useApi } from '../hooks/useApi';
 import { fetchApi } from '../hooks/useApi';
 import { Send, CheckCircle2, RefreshCw, Loader2, Crown, Lock, Target, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Onboarding } from './Onboarding';
 import { cn } from '../utils/cn';
 import { Login } from './Login';
 import { supabase } from '../lib/supabase';
@@ -298,23 +299,7 @@ export function Fantasy() {
 
     // --- NEW: THE FRIENDLY PROFILE BLOCKER ---
     if (user && !profile?.wc_team_flair && fantasySection === 'fifa') {
-        return (
-            <div className="max-w-xl mx-auto mt-20 p-8 bg-black/40 border border-white/10 rounded-3xl text-center backdrop-blur-md animate-in fade-in zoom-in-95 duration-500">
-                <Target className="w-12 h-12 text-zinc-500 mx-auto mb-6" />
-                <h2 className="text-2xl font-black uppercase tracking-widest text-white mb-2">Profile Update Required</h2>
-                <p className="text-zinc-400 mb-8">
-                    To access the Fantasy League, you must select your World Cup team allegiance.
-                </p>
-                <button 
-                    onClick={() => {
-                        window.location.href = '/?view=profile';
-                    }}
-                    className="w-full h-14 bg-white text-black hover:bg-zinc-200 rounded-xl font-bold uppercase tracking-widest transition-all duration-300"
-                >
-                    Update Profile
-                </button>
-            </div>
-        );
+        return <div className="animate-in fade-in zoom-in-95 duration-500"><Onboarding /></div>;
     }
 
     return (
