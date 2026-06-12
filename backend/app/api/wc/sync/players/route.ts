@@ -19,6 +19,15 @@ export async function GET(request: NextRequest) {
     const response = await fetch(url);
     const teams = await response.json();
 
+    // NEW SAFETY CHECK: If the API returns an error object, stop and show it!
+    if (!Array.isArray(teams)) {
+      console.error("API returned an unexpected response:", teams);
+      return NextResponse.json({ 
+        error: "API-Football request failed", 
+        api_response: teams 
+      }, { status: 400 });
+    }
+
     let allPlayers: any[] = [];
 
     // Loop through every team, then loop through their players
@@ -36,17 +45,31 @@ export async function GET(request: NextRequest) {
     });
 
     // Upsert all extracted players into Supabase
-    const { data, error } = await supabase
-      .from('wc_players')
-      .upsert(allPlayers)
-      .select();
+    let totalUpdated = 0;
+    const chunkSize = 300;
 
-    if (error) throw error;
+    for (let i = 0; i < allPlayers.length; i += chunkSize) {
+      const chunk = allPlayers.slice(i, i + chunkSize);
+      const { data, error } = await supabase
+        .from('wc_players')
+        .upsert(chunk)
+        .select();
 
-    return NextResponse.json({ success: true, updated: data.length });
+      if (error) {
+        console.error("Chunk Upsert Error:", error);
+        throw error;
+      }
+      if (data) totalUpdated += data.length;
+    }
+
+    return NextResponse.json({ success: true, updated: totalUpdated });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error("Player Sync Error:", error);
-    return NextResponse.json({ error: "Failed to sync players" }, { status: 500 });
+    // Send the actual error message back to the curl response!
+    return NextResponse.json({ 
+      error: "Failed to sync players", 
+      details: error.message || error.toString() 
+    }, { status: 500 });
   }
 }
