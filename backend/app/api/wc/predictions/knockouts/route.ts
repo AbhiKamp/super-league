@@ -33,7 +33,7 @@ export async function GET(req: Request) {
             .single();
 
         if (error || !savedBracket) {
-            return NextResponse.json({ success: false, error: "No knockout predictions found for this user." }, { status: 404, headers: corsHeaders });
+            return NextResponse.json({ success: true, data: null, message: "No knockout predictions found for this user." }, { status: 200, headers: corsHeaders });
         }
 
         // 2. We must regenerate the base R32 bracket so the UI knows how to draw the starting positions!

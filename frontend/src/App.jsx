@@ -34,7 +34,7 @@ function ProtectedRoute({ children }) {
   if (loading) return <div className="min-h-screen bg-black flex justify-center items-center"><Loader /></div>;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   
-  if (!profile?.nickname || !profile?.team_flair_id) return <Onboarding />;
+  if (!profile?.nickname || !profile?.wc_team_flair) return <Onboarding />;
 
   const isWc = location.pathname === '/wc';
 
@@ -110,7 +110,7 @@ function App() {
             {/* Note the :id syntax! This catches /article/12345 */}
             <Route path="/article/:id" element={<PublicRoute><ArticleView /></PublicRoute>} />
 
-            <Route path="/wc" element={<ProtectedRoute><WcRoute /></ProtectedRoute>} />
+            <Route path="/wc" element={<PublicRoute><WcRoute /></PublicRoute>} />
             
             {/* Protected Routes (Require Login/Profile) */}
             <Route path="/fantasy" element={<ProtectedRoute><Fantasy /></ProtectedRoute>} />

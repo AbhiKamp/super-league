@@ -7,23 +7,14 @@ import { Send, User } from 'lucide-react';
 export function Onboarding() {
   const { user, profile, setProfile, signOut } = useAuth();
   const [nickname, setNickname] = useState(profile?.nickname || '');
-  const [mensFlair, setMensFlair] = useState(profile?.mens_team_flair || '');
-  const [womensFlair, setWomensFlair] = useState(profile?.womens_team_flair || '');
   const [wcFlair, setWcFlair] = useState(profile?.wc_team_flair || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   
-  const [mensTeams, setMensTeams] = useState([]);
-  const [womensTeams, setWomensTeams] = useState([]);
   const [wcTeams, setWcTeams] = useState([]);
 
   useEffect(() => {
     const fetchAllTeams = async () => {
-      const { data } = await supabase.from('teams').select('*').order('name');
-      if (data) {
-        setMensTeams(data.filter(t => t.division === 'mens'));
-        setWomensTeams(data.filter(t => t.division === 'womens'));
-      }
       
       const fallbackWcTeams = [
         { id: 'ar', name: 'Argentina' }, { id: 'br', name: 'Brazil' },
@@ -50,7 +41,7 @@ export function Onboarding() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!nickname.trim() || !mensFlair || !womensFlair || !wcFlair) return;
+    if (!nickname.trim() || !wcFlair) return;
     
     setSaving(true);
     setError(null);
@@ -74,9 +65,6 @@ export function Onboarding() {
       id: user.id,
       email: user.email,
       nickname: nickname.trim(),
-      mens_team_flair: mensFlair,
-      womens_team_flair: womensFlair,
-      team_flair_id: mensFlair,
       wc_team_flair: wcFlair
     };
 
@@ -124,7 +112,7 @@ export function Onboarding() {
         <form onSubmit={handleSubmit} className="space-y-6 text-left">
           <div>
             <label className="block text-xs font-black uppercase tracking-widest text-zinc-500 mb-2 ml-1">
-              Choose Nickname
+              Enter Nickname
             </label>
             <input
               type="text"
@@ -138,37 +126,7 @@ export function Onboarding() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 ml-1">
-                Men's Team Flair
-              </label>
-              <select
-                value={mensFlair}
-                onChange={(e) => setMensFlair(e.target.value)}
-                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white font-bold outline-none focus:border-[#00c3e3]/40 transition-colors appearance-none cursor-pointer"
-                required
-              >
-                <option value="" disabled>Select Club...</option>
-                {mensTeams.map((t) => <option key={t.id} value={t.name} className="bg-zinc-900">{t.name}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 ml-1">
-                Women's Team Flair
-              </label>
-              <select
-                value={womensFlair}
-                onChange={(e) => setWomensFlair(e.target.value)}
-                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white font-bold outline-none focus:border-[#00c3e3]/40 transition-colors appearance-none cursor-pointer"
-                required
-              >
-                <option value="" disabled>Select Club...</option>
-                {womensTeams.map((t) => <option key={t.id} value={t.name} className="bg-zinc-900">{t.name}</option>)}
-              </select>
-            </div>
-
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 ml-1">
                 World Cup Flair
@@ -187,7 +145,7 @@ export function Onboarding() {
 
           <button
             type="submit"
-            disabled={saving || !nickname || !mensFlair || !womensFlair || !wcFlair}
+            disabled={saving || !nickname || !wcFlair}
             className="w-full group h-14 bg-[#00c3e3] text-black hover:bg-[#00e5ff] rounded-xl font-bold uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
           >
             {saving ? "Saving..." : "Enter The League"}

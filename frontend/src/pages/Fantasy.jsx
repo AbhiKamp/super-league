@@ -292,25 +292,22 @@ export function Fantasy() {
         return <Loader text="Loading Predictor Engine..." />;
     }
 
-    if (!user) {
+    if (!user && fantasySection !== 'fifa') {
         return <div className="animate-in fade-in zoom-in-95 duration-500"><Login /></div>;
     }
 
     // --- NEW: THE FRIENDLY PROFILE BLOCKER ---
-    if (!profile?.mens_team_flair || !profile?.womens_team_flair) {
+    if (user && !profile?.wc_team_flair && fantasySection === 'fifa') {
         return (
             <div className="max-w-xl mx-auto mt-20 p-8 bg-black/40 border border-white/10 rounded-3xl text-center backdrop-blur-md animate-in fade-in zoom-in-95 duration-500">
                 <Target className="w-12 h-12 text-zinc-500 mx-auto mb-6" />
                 <h2 className="text-2xl font-black uppercase tracking-widest text-white mb-2">Profile Update Required</h2>
                 <p className="text-zinc-400 mb-8">
-                    To access the Fantasy League, you must select your team allegiances for both the Men's and Women's divisions.
+                    To access the Fantasy League, you must select your World Cup team allegiance.
                 </p>
-                {/* Notice we just change the state, no window.location.href! */}
                 <button 
                     onClick={() => {
-                        // Assuming you have access to setView via useLeague context:
-                        // If you don't have setView in this file, you might need to import it!
-                        window.location.href = '/?view=profile'; // Send them to the User Profile page!
+                        window.location.href = '/?view=profile';
                     }}
                     className="w-full h-14 bg-white text-black hover:bg-zinc-200 rounded-xl font-bold uppercase tracking-widest transition-all duration-300"
                 >

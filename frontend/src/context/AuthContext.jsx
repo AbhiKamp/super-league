@@ -71,6 +71,12 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = async () => {
     setLoading(true);
+    
+    // Save current path to return here after login, unless we're already on the login page
+    if (window.location.pathname !== '/login') {
+      sessionStorage.setItem('authRedirect', window.location.pathname + window.location.search);
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

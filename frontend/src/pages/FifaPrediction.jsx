@@ -807,8 +807,8 @@ useEffect(() => {
                   </div>
                 </div>
           ) : (
-            <div className="lb-wrap" style={{ flex: 1, minWidth: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '24px', textAlign: 'center' }}>
-              <h3 className="font-fifa" style={{ fontSize: '24px', color: 'var(--fifa-cyan)', marginBottom: '8px' }}>LOGIN REQUIRED</h3>
+            <div className="lb-wrap" style={{ flex: 1, minWidth: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '24px', textAlign: 'center', background: 'rgba(0, 0, 0, 0.8)' }}>
+              <h3 className="font-fifa" style={{ fontSize: '24px', color: 'white', marginBottom: '8px' }}>LOGIN REQUIRED</h3>
               <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '14px', marginBottom: '16px' }}>You must log in to participate and submit predictions.</p>
               <button 
                 onClick={signInWithGoogle}
@@ -820,11 +820,36 @@ useEffect(() => {
           )}
 
           {/* Scoring rules */}
-          <div className="lb-wrap" style={{ flex: 1, minWidth: '320px' }}>
+          <div className="lb-wrap" style={{ flex: 1, minWidth: '320px', background: 'rgba(0, 0, 0, 0.8)' }}>
             <div className="lb-hdr" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(0, 0, 0, 0.2)', justifyContent: 'center', padding: '16px' }}>
               <span className="lb-hdr-t font-fifa" style={{ fontSize: '20px' }}>HOW TO PLAY</span>
             </div>
             <div className="dash-rules" style={{ padding: '20px 24px' }}>
+              <div className="dash-rule-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '20px' }}>
+                <div className="rule-badge" style={{ background: 'white', color: '#000' }}>STEP 1: PREDICT GROUP STAGES</div>
+                <div className="rule-text" style={{ fontSize: '12px', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)' }}>
+                  Rank the four teams in each of the 12 groups from 1st to 4th place. The top two teams from every group will automatically advance to the knockout rounds.
+                </div>
+              </div>
+              
+              <div className="dash-rule-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '20px' }}>
+                <div className="rule-badge" style={{ background: 'white', color: '#000' }}>STEP 2: THIRD-PLACE TEAMS</div>
+                <div className="rule-text" style={{ fontSize: '12px', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)' }}>
+                  Because the 2026 tournament features an expanded format with 12 groups, the top two teams from each group only provide 24 advancing teams. To complete the 32-team knockout bracket, you must review your 3rd-place finishers and select the 8 best teams to advance.
+                </div>
+              </div>
+              
+              <div className="dash-rule-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '24px' }}>
+                <div className="rule-badge" style={{ background: 'white', color: '#000' }}>STEP 3: KNOCKOUT BRACKET</div>
+                <div className="rule-text" style={{ fontSize: '12px', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)' }}>
+                  Once your final 32 teams are locked in, the system will automatically generate your knockout bracket. Simply select the winner of each matchup to advance them to the next round, continuing until you have chosen your tournament champion.
+                </div>
+              </div>
+              
+              <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.1)', marginBottom: '24px' }}></div>
+              
+              <h4 style={{ color: 'white', fontSize: '14px', fontWeight: 'bold', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Scoring Rules</h4>
+
               <div className="dash-rule-row">
                 <div className="rule-badge" style={{ background: 'var(--fifa-green)' }}>GROUP STAGES</div>
                 <div className="rule-text">
