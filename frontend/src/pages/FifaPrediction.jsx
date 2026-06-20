@@ -30,7 +30,7 @@ export function FifaPrediction() {
   const [groupStandings, setGroupStandings] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
 
-  const PREDICTION_DEADLINE = new Date('2026-06-20T00:00:00Z'); 
+  const PREDICTION_DEADLINE = new Date('2026-06-22T00:00:00Z'); 
   const isPastDeadline = new Date() > PREDICTION_DEADLINE;
   
   // NEW: Granular submission states
