@@ -42,6 +42,53 @@ export function FifaPrediction() {
   // NEW: Internal View Router ('home' | 'groups' | 'third_place')
   const [activeView, setActiveView] = useState('home');
 
+  // NEW: Viewing other users
+  const [viewingOtherUser, setViewingOtherUser] = useState(null); // { userId, nickname }
+  const [otherUserStandings, setOtherUserStandings] = useState(null);
+
+  const handleViewOtherUserPredictions = async (userId, nickname) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/wc/predictions/groups?user_id=${userId}`);
+      const json = await res.json();
+      
+      if (json.success && json.data && json.data.length > 0) {
+        const standings = {};
+        const allTeams = Object.values(dbGroups).flat();
+        
+        Object.keys(dbGroups).forEach(group => {
+          const pred = json.data.find(p => p.group_name === `Group ${group}`);
+          if (pred) {
+            standings[group] = [
+              allTeams.find(t => t.id === pred.first_place_id),
+              allTeams.find(t => t.id === pred.second_place_id),
+              allTeams.find(t => t.id === pred.third_place_id),
+              allTeams.find(t => t.id === pred.fourth_place_id)
+            ].filter(Boolean);
+            if (standings[group].length !== 4) standings[group] = dbGroups[group];
+          } else {
+            standings[group] = dbGroups[group]; // fallback if incomplete
+          }
+        });
+        setOtherUserStandings(standings);
+        setViewingOtherUser({ userId, nickname });
+        setActiveView('groups');
+        window.scrollTo(0, 0);
+      } else {
+        alert(`${nickname} hasn't submitted group predictions yet.`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to load predictions.');
+    }
+  };
+
+  const handleBackToMyPredictions = () => {
+    setViewingOtherUser(null);
+    setOtherUserStandings(null);
+    setActiveView('home');
+  };
+
+
   const isAwardsLocked = hasSubmittedAwards || isPastDeadline;
   const isGroupsLocked = hasSubmittedGroups || isPastDeadline;
 
@@ -846,57 +893,65 @@ export function FifaPrediction() {
               {activeView === 'groups' && (
                 <div id="groups-view">
                   <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '24px' }}>
-                    <button onClick={() => setActiveView('home')} style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}>
-                      ← Collapse
+                    <button onClick={() => viewingOtherUser ? handleBackToMyPredictions() : setActiveView('home')} style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}>
+                      ← {viewingOtherUser ? 'Back to Dashboard' : 'Collapse'}
                     </button>
                   </div>
 
                   <div className="sh" style={{ marginBottom: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                     <h2 className="font-fifa-italic" style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', color: 'white', lineHeight: '1.2', letterSpacing: '0.05em' }}>
-                      PREDICT THE GROUP <span style={{ color: 'var(--fifa-gold)' }}>STAGES</span>
+                      {viewingOtherUser ? (
+                        <>VIEWING <span style={{ color: 'var(--fifa-gold)' }}>{viewingOtherUser.nickname.toUpperCase()}'S</span> PREDICTIONS</>
+                      ) : (
+                        <>PREDICT THE GROUP <span style={{ color: 'var(--fifa-gold)' }}>STAGES</span></>
+                      )}
                     </h2>
                     <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontWeight: '500', marginTop: '12px', fontSize: '15px', maxWidth: '500px' }}>
-                      Drag and position teams in each group to predict the group stage standings
+                      {viewingOtherUser 
+                        ? `These are the group stage standings predicted by ${viewingOtherUser.nickname}.`
+                        : "Drag and position teams in each group to predict the group stage standings"}
                     </p>
                   </div>
 
-                  <div className="lb-wrap" style={{ width: '100%', maxWidth: '800px', margin: '0 auto 40px auto', background: 'rgba(0, 0, 0, 0.8)' }}>
-                    <div className="lb-hdr" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(0, 0, 0, 0.2)', justifyContent: 'center', padding: '16px' }}>
-                      <span className="lb-hdr-t font-fifa" style={{ fontSize: '20px' }}>HOW TO PLAY</span>
+                  {!viewingOtherUser && (
+                    <div className="lb-wrap" style={{ width: '100%', maxWidth: '800px', margin: '0 auto 40px auto', background: 'rgba(0, 0, 0, 0.8)' }}>
+                      <div className="lb-hdr" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(0, 0, 0, 0.2)', justifyContent: 'center', padding: '16px' }}>
+                        <span className="lb-hdr-t font-fifa" style={{ fontSize: '20px' }}>HOW TO PLAY</span>
+                      </div>
+                      <div className="dash-rules" style={{ padding: '20px 24px' }}>
+                        <div className="dash-rule-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '20px' }}>
+                          <div className="rule-badge" style={{ background: 'white', color: '#000' }}>STEP 1: TOURNAMENT AWARDS</div>
+                          <div className="rule-text" style={{ fontSize: '12px', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)' }}>
+                            Start by predicting the overall tournament superstars to unlock the main brackets.
+                          </div>
+                        </div>
+                        <div className="dash-rule-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '20px' }}>
+                          <div className="rule-badge" style={{ background: 'white', color: '#000' }}>STEP 2: GROUP STAGES</div>
+                          <div className="rule-text" style={{ fontSize: '12px', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)' }}>
+                            Rank the four teams in each of the 12 groups. Select your best 3rd-place advancing teams to complete the Top 32.
+                          </div>
+                        </div>
+                        <div className="dash-rule-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '24px' }}>
+                          <div className="rule-badge" style={{ background: 'white', color: '#000' }}>STEP 3: KNOCKOUT BRACKET</div>
+                          <div className="rule-text" style={{ fontSize: '12px', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)' }}>
+                            Select the winner of each knockout matchup to advance them to the next round, continuing until you have chosen your champion.
+                          </div>
+                        </div>
+                        <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.1)', marginBottom: '24px' }}></div>
+                        <h4 style={{ color: 'white', fontSize: '14px', fontWeight: 'bold', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Scoring Rules</h4>
+                        <div className="dash-rule-row">
+                          <div className="rule-badge" style={{ background: 'var(--fifa-green)' }}>GROUP STAGES</div>
+                          <div className="rule-text"><span className="rule-highlight">5 Points</span> for each team placed in their exact correct standing.</div>
+                        </div>
+                        <div className="dash-rule-row">
+                          <div className="rule-badge" style={{ background: 'var(--fifa-gold)' }}>AWARDS</div>
+                          <div className="rule-text"><span className="rule-highlight">100 Points</span> for predicting the Golden Boot, Glove, or Ball.</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="dash-rules" style={{ padding: '20px 24px' }}>
-                      <div className="dash-rule-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '20px' }}>
-                        <div className="rule-badge" style={{ background: 'white', color: '#000' }}>STEP 1: TOURNAMENT AWARDS</div>
-                        <div className="rule-text" style={{ fontSize: '12px', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)' }}>
-                          Start by predicting the overall tournament superstars to unlock the main brackets.
-                        </div>
-                      </div>
-                      <div className="dash-rule-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '20px' }}>
-                        <div className="rule-badge" style={{ background: 'white', color: '#000' }}>STEP 2: GROUP STAGES</div>
-                        <div className="rule-text" style={{ fontSize: '12px', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)' }}>
-                          Rank the four teams in each of the 12 groups. Select your best 3rd-place advancing teams to complete the Top 32.
-                        </div>
-                      </div>
-                      <div className="dash-rule-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '24px' }}>
-                        <div className="rule-badge" style={{ background: 'white', color: '#000' }}>STEP 3: KNOCKOUT BRACKET</div>
-                        <div className="rule-text" style={{ fontSize: '12px', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)' }}>
-                          Select the winner of each knockout matchup to advance them to the next round, continuing until you have chosen your champion.
-                        </div>
-                      </div>
-                      <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.1)', marginBottom: '24px' }}></div>
-                      <h4 style={{ color: 'white', fontSize: '14px', fontWeight: 'bold', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Scoring Rules</h4>
-                      <div className="dash-rule-row">
-                        <div className="rule-badge" style={{ background: 'var(--fifa-green)' }}>GROUP STAGES</div>
-                        <div className="rule-text"><span className="rule-highlight">5 Points</span> for each team placed in their exact correct standing.</div>
-                      </div>
-                      <div className="dash-rule-row">
-                        <div className="rule-badge" style={{ background: 'var(--fifa-gold)' }}>AWARDS</div>
-                        <div className="rule-text"><span className="rule-highlight">100 Points</span> for predicting the Golden Boot, Glove, or Ball.</div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
 
-                  {isGroupsLocked && (
+                  {!viewingOtherUser && isGroupsLocked && (
                     <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                       <span className="font-fifa" style={{ color: 'var(--fifa-gold)', fontSize: '24px', letterSpacing: '2px' }}>PREDICTIONS LOCKED</span>
                       <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '15px', marginTop: '8px' }}>You have already submitted your Group Stage predictions.</p>
@@ -904,21 +959,26 @@ export function FifaPrediction() {
                   )}
 
                   <div className="groups-container">
-                    {Object.keys(groupStandings).map((groupName) => (
+                    {Object.keys(viewingOtherUser ? otherUserStandings : groupStandings).map((groupName) => {
+                      const activeStandings = viewingOtherUser ? otherUserStandings : groupStandings;
+                      return (
                       <div className="group-card" key={groupName}>
                         <div className="group-header-row">
                           <div className="group-header">GROUP {groupName}</div>
                         </div>
                         <div className="group-list-container">
                           <div className="group-list" data-group={groupName}>
-                            {groupStandings[groupName].map((team, idx) => {
+                            {activeStandings[groupName].map((team, idx) => {
                               const isAdvancing = idx < 2;
                               const slotKey = `${groupName}-${idx}`;
                               const isDraggingThis = draggingTeam && draggingTeam.group === groupName && draggingTeam.index === idx;
                               const positionText = ["1st", "2nd", "3rd", "4th"][idx];
                               
                               const officialGroup = officialStandings.groups[groupName];
-                              const isCorrect = isGroupsLocked && officialGroup && officialGroup[idx] && officialGroup[idx].team === team.name;
+                              const isGroupsLockedOrViewing = isGroupsLocked || viewingOtherUser;
+                              const isCorrect = isGroupsLockedOrViewing && officialGroup && officialGroup[idx] && officialGroup[idx].team === team.name;
+                              const isDraggingEnabled = !isGroupsLocked && !viewingOtherUser;
+
                               
                               return (
                                 <div className="group-row" key={idx}>
@@ -933,7 +993,7 @@ export function FifaPrediction() {
                                   >
                                     <div
                                       className={`team-card ${isAdvancing ? '' : 'eliminated'} ${isDraggingThis ? 'dragging' : ''}`}
-                                      draggable={!isGroupsLocked}
+                                      draggable={isDraggingEnabled}
                                       onDragStart={(e) => handleDragStart(e, groupName, idx)}
                                       onDragEnd={handleDragEnd}
                                       data-team={team.name}
@@ -942,7 +1002,7 @@ export function FifaPrediction() {
                                         <img src={team.logo_url} alt={team.name} className="team-flag-img" style={{ flexShrink: 0 }} />
                                         <span className="team-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.name}</span>
                                       </div>
-                                      {!isGroupsLocked && (
+                                      {isDraggingEnabled && (
                                         <>
                                           <div className="mobile-move-controls" style={{ display: 'flex', flexDirection: 'column', marginRight: '4px', flexShrink: 0 }}>
                                             <button onClick={(e) => { e.preventDefault(); moveTeam(groupName, idx, -1); }} disabled={idx === 0} style={{ background: 'transparent', border: 'none', padding: '0px 8px', fontSize: '12px', color: idx === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.8)', cursor: idx === 0 ? 'default' : 'pointer' }}>▲</button>
@@ -961,10 +1021,11 @@ export function FifaPrediction() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
-                  {!isGroupsLocked && (
+                  {!viewingOtherUser && !isGroupsLocked && (
                     <div className="submit-section" style={{ marginTop: '40px' }}>
                       <button className="submit-btn" onClick={handleSubmitGroups}>
                         SUBMIT GROUP STAGES
@@ -972,7 +1033,7 @@ export function FifaPrediction() {
                     </div>
                   )}
 
-                  {isGroupsLocked && (
+                  {!viewingOtherUser && isGroupsLocked && (
                     <div className="submit-section" style={{ marginTop: '40px', display: 'flex', justifyContent: 'center' }}>
                       {!hasKnockoutPrediction ? (
                         <button className="premium-proceed-btn" onClick={() => setActiveView('third_place')}>
@@ -1141,9 +1202,20 @@ export function FifaPrediction() {
                           </div>
                         )}
                       </div>
-                      <div className="lb-sc">
-                        <div className="lb-p font-fifa" style={{ color: rankColor }}>{player.points}</div>
-                        <div className="lb-pl">pts</div>
+                      <div className="lb-sc" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <div className="lb-p font-fifa" style={{ color: rankColor }}>{player.points}</div>
+                          <div className="lb-pl">pts</div>
+                        </div>
+                        {player.user_id && (
+                          <button 
+                            onClick={() => handleViewOtherUserPredictions(player.user_id, player.user_profiles?.nickname)}
+                            title={`View ${player.user_profiles?.nickname}'s Predictions`}
+                            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

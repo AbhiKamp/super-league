@@ -11,6 +11,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from('wc_leaderboard')
       .select(`
+        user_id,
         points,
         updated_at,
         user_profiles ( nickname, real_name, wc_team_flair )
