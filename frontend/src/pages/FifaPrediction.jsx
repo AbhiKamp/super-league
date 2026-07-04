@@ -7,6 +7,7 @@ import { KnockoutBracket } from './KnockoutBracket';
 import './FifaPrediction.css';
 import { supabase } from '../lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
+import officialStandings from '../data/officialStandings.json';
 
 export function FifaPrediction() {
   const { user, profile, signInWithGoogle } = useAuth();
@@ -814,7 +815,7 @@ export function FifaPrediction() {
                         {hasSubmittedGroups && !hasKnockoutPrediction && (
                           <>
                             <button className="premium-proceed-btn" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', flex: '1', minWidth: '200px' }} onClick={() => setActiveView('groups')}>
-                              View Group Stage Prediction
+                              View Group Stage Prediction Results
                             </button>
                             <button className="premium-proceed-btn" onClick={() => setActiveView('third_place')} style={{ flex: '1', minWidth: '200px' }}>
                               Proceed to Knockout
@@ -825,7 +826,7 @@ export function FifaPrediction() {
                         {hasSubmittedGroups && hasKnockoutPrediction && (
                           <>
                             <button className="premium-proceed-btn" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', flex: '1', minWidth: '200px' }} onClick={() => setActiveView('groups')}>
-                              View Group Stage Prediction
+                              View Group Stage Prediction Results
                             </button>
                             <button className="premium-proceed-btn" onClick={goToKnockouts} style={{ flex: '1', minWidth: '200px' }}>
                               View Knockout Stage Prediction
@@ -916,11 +917,15 @@ export function FifaPrediction() {
                               const isDraggingThis = draggingTeam && draggingTeam.group === groupName && draggingTeam.index === idx;
                               const positionText = ["1st", "2nd", "3rd", "4th"][idx];
                               
+                              const officialGroup = officialStandings.groups[groupName];
+                              const isCorrect = isGroupsLocked && officialGroup && officialGroup[idx] && officialGroup[idx].team === team.name;
+                              
                               return (
                                 <div className="group-row" key={idx}>
                                   <div className="rank-label">{positionText}</div>
                                   <div
-                                    className={`group-slot ${isAdvancing ? 'advancing' : 'eliminated'} ${dragOverSlot === slotKey ? 'drag-over' : ''}`}
+                                    className={`group-slot ${isAdvancing ? 'advancing' : 'eliminated'} ${dragOverSlot === slotKey ? 'drag-over' : ''} ${isCorrect ? 'correct-prediction' : ''}`}
+                                    style={isCorrect ? { borderColor: '#00e676', backgroundColor: 'rgba(0, 230, 118, 0.45)' } : {}}
                                     data-position={idx + 1}
                                     onDragOver={(e) => handleDragOver(e, groupName, idx)}
                                     onDragLeave={handleDragLeave}
