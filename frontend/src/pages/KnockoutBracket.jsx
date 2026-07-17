@@ -24,7 +24,10 @@ const OFFICIAL_SF = [
   "Argentina"
 ]; // Max capacity: 4
 
-const OFFICIAL_FINAL = [];   // Max capacity: 2
+const OFFICIAL_FINAL = [
+    "Spain",
+  "Argentina"];   // Max capacity: 2
+  
 const OFFICIAL_CHAMPION = []; // Max capacity: 1
 
 const FullScreenConfetti = () => {
