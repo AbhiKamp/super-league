@@ -28,7 +28,7 @@ const OFFICIAL_FINAL = [
     "Spain",
   "Argentina"];   // Max capacity: 2
   
-const OFFICIAL_CHAMPION = []; // Max capacity: 1
+const OFFICIAL_CHAMPION = ["Spain"]; // Max capacity: 1
 
 const FullScreenConfetti = () => {
     const [particles, setParticles] = useState([]);
